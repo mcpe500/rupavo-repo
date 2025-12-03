@@ -1,0 +1,16 @@
+.2025114-19936-1ruedai.3lyb
+
+# Binaries and Ephemeral files
+**/ephemeral/
+**/build/
+**/*.dll
+**/*.so
+**/*.dylib
+**/*.jar
+
+# Logs and Env
+logs/
+*.log
+.env
+.env.*.local
+node_modules/

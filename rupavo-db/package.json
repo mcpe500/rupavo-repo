@@ -1,0 +1,28 @@
+{
+  "name": "rupavo-db",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "supabase": "npx supabase",
+    "supabase:help": "npx supabase --help",
+    "supabase:login": "npx supabase login",
+    "supabase:init": "npx supabase init",
+    "supabase:link": "npx supabase link --project-ref $SUPABASE_PROJECT_REF",
+    "db:start": "npx supabase start",
+    "db:stop": "npx supabase stop",
+    "db:migration:new": "npx supabase migration new",
+    "db:migration:up": "npx supabase migration up",
+    "db:push": "npx supabase db push",
+    "db:pull": "npx supabase db pull",
+    "db:reset": "npx supabase db reset"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "supabase": "^2.65.3"
+  }
+}
