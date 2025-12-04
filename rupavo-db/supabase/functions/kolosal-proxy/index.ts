@@ -3,8 +3,8 @@
 // Secure proxy with Supabase JWT authentication
 // =============================================================================
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "std/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 import { KolosalClient, KolosalError } from "./client.ts";
 import type {
     KolosalAction,
@@ -123,9 +123,7 @@ async function handleAction(
     client: KolosalClient,
     request: KolosalProxyRequest
 ): Promise<unknown> {
-    const { action, data, workspace_id, category_id, feature_id } = request;
-
-    switch (action) {
+    switch (request.action) {
         // -------------------------------------------------------------------------
         // Health
         // -------------------------------------------------------------------------
@@ -138,12 +136,12 @@ async function handleAction(
         // OCR
         // -------------------------------------------------------------------------
         case "ocr":
-            return client.ocr(data as OcrRequest);
+            return client.ocr(request.data);
         case "ocr.form":
             // For form data, we need to reconstruct FormData from the passed data
             const formData = new FormData();
-            if (data) {
-                for (const [key, value] of Object.entries(data)) {
+            if (request.data) {
+                for (const [key, value] of Object.entries(request.data)) {
                     if (value !== null && value !== undefined) {
                         formData.append(key, String(value));
                     }
@@ -155,7 +153,7 @@ async function handleAction(
         // Chat
         // -------------------------------------------------------------------------
         case "chat.completions":
-            return client.chatCompletions(data as ChatCompletionRequest);
+            return client.chatCompletions(request.data);
 
         // -------------------------------------------------------------------------
         // Models
@@ -167,11 +165,11 @@ async function handleAction(
         // Agent
         // -------------------------------------------------------------------------
         case "agent.generate":
-            return client.agentGenerate(data as AgentRequest);
+            return client.agentGenerate(request.data);
         case "agent.generate.stream":
             // Streaming requires special handling - return raw response
             const streamResponse = await client.agentGenerateStream(
-                data as AgentRequest
+                request.data
             );
             return { streaming: true, status: streamResponse.status };
         case "agent.stats":
@@ -192,8 +190,8 @@ async function handleAction(
             return client.cacheClear();
         case "segment":
             const segmentFormData = new FormData();
-            if (data) {
-                for (const [key, value] of Object.entries(data)) {
+            if (request.data) {
+                for (const [key, value] of Object.entries(request.data)) {
                     if (value !== null && value !== undefined) {
                         if (Array.isArray(value)) {
                             value.forEach((v) => segmentFormData.append(key, String(v)));
@@ -205,7 +203,7 @@ async function handleAction(
             }
             return client.segment(segmentFormData);
         case "segment.base64":
-            return client.segmentBase64(data as SegmentJsonRequest);
+            return client.segmentBase64(request.data);
 
         // -------------------------------------------------------------------------
         // Workspaces
@@ -213,122 +211,90 @@ async function handleAction(
         case "workspaces.list":
             return client.listWorkspaces();
         case "workspaces.create":
-            return client.createWorkspace(data as CreateWorkspaceRequest);
+            return client.createWorkspace(request.data);
         case "workspaces.get":
-            if (!workspace_id) throw new Error("workspace_id is required");
-            return client.getWorkspace(workspace_id);
+            return client.getWorkspace(request.workspace_id);
         case "workspaces.update":
-            if (!workspace_id) throw new Error("workspace_id is required");
             return client.updateWorkspace(
-                workspace_id,
-                data as UpdateWorkspaceRequest
+                request.workspace_id,
+                request.data
             );
         case "workspaces.delete":
-            if (!workspace_id) throw new Error("workspace_id is required");
-            return client.deleteWorkspace(workspace_id);
+            return client.deleteWorkspace(request.workspace_id);
         case "workspaces.order.get":
             return client.getWorkspaceOrder();
         case "workspaces.order.update":
-            return client.updateWorkspaceOrder(data as UpdateWorkspaceOrderRequest);
+            return client.updateWorkspaceOrder(request.data);
         case "workspaces.order.stats":
             return client.getOrderingStats();
         case "workspaces.stats":
             return client.getWorkspaceStats();
         case "workspaces.status":
-            if (!workspace_id) throw new Error("workspace_id is required");
-            return client.getWorkspaceStatus(workspace_id);
+            return client.getWorkspaceStatus(request.workspace_id);
 
         // -------------------------------------------------------------------------
         // Categories
         // -------------------------------------------------------------------------
         case "categories.list":
-            if (!workspace_id) throw new Error("workspace_id is required");
-            return client.listCategories(workspace_id);
+            return client.listCategories(request.workspace_id);
         case "categories.create":
-            if (!workspace_id) throw new Error("workspace_id is required");
             return client.createCategory(
-                workspace_id,
-                data as CreateCategoryRequest
+                request.workspace_id,
+                request.data
             );
         case "categories.get":
-            if (!workspace_id || !category_id)
-                throw new Error("workspace_id and category_id are required");
-            return client.getCategory(workspace_id, category_id);
+            return client.getCategory(request.workspace_id, request.category_id);
         case "categories.update":
-            if (!workspace_id || !category_id)
-                throw new Error("workspace_id and category_id are required");
             return client.updateCategory(
-                workspace_id,
-                category_id,
-                data as UpdateCategoryRequest
+                request.workspace_id,
+                request.category_id,
+                request.data
             );
         case "categories.delete":
-            if (!workspace_id || !category_id)
-                throw new Error("workspace_id and category_id are required");
-            return client.deleteCategory(workspace_id, category_id);
+            return client.deleteCategory(request.workspace_id, request.category_id);
         case "categories.order.get":
-            if (!workspace_id) throw new Error("workspace_id is required");
-            return client.getCategoryOrder(workspace_id);
+            return client.getCategoryOrder(request.workspace_id);
         case "categories.order.update":
-            if (!workspace_id) throw new Error("workspace_id is required");
             return client.updateCategoryOrder(
-                workspace_id,
-                data as UpdateCategoryOrderRequest
+                request.workspace_id,
+                request.data
             );
 
         // -------------------------------------------------------------------------
         // Features
         // -------------------------------------------------------------------------
         case "features.list":
-            if (!workspace_id || !category_id)
-                throw new Error("workspace_id and category_id are required");
-            return client.listFeatures(workspace_id, category_id);
+            return client.listFeatures(request.workspace_id, request.category_id);
         case "features.create":
-            if (!workspace_id || !category_id)
-                throw new Error("workspace_id and category_id are required");
             return client.createFeature(
-                workspace_id,
-                category_id,
-                data as CreateFeatureRequest
+                request.workspace_id,
+                request.category_id,
+                request.data
             );
         case "features.get":
-            if (!workspace_id || !category_id || !feature_id)
-                throw new Error(
-                    "workspace_id, category_id, and feature_id are required"
-                );
-            return client.getFeature(workspace_id, category_id, feature_id);
+            return client.getFeature(request.workspace_id, request.category_id, request.feature_id);
         case "features.update":
-            if (!workspace_id || !category_id || !feature_id)
-                throw new Error(
-                    "workspace_id, category_id, and feature_id are required"
-                );
             return client.updateFeature(
-                workspace_id,
-                category_id,
-                feature_id,
-                data as UpdateFeatureRequest
+                request.workspace_id,
+                request.category_id,
+                request.feature_id,
+                request.data
             );
         case "features.delete":
-            if (!workspace_id || !category_id || !feature_id)
-                throw new Error(
-                    "workspace_id, category_id, and feature_id are required"
-                );
-            return client.deleteFeature(workspace_id, category_id, feature_id);
+            return client.deleteFeature(request.workspace_id, request.category_id, request.feature_id);
         case "features.order.get":
-            if (!workspace_id || !category_id)
-                throw new Error("workspace_id and category_id are required");
-            return client.getFeatureOrder(workspace_id, category_id);
+            return client.getFeatureOrder(request.workspace_id, request.category_id);
         case "features.order.update":
-            if (!workspace_id || !category_id)
-                throw new Error("workspace_id and category_id are required");
             return client.updateFeatureOrder(
-                workspace_id,
-                category_id,
-                data as UpdateFeatureOrderRequest
+                request.workspace_id,
+                request.category_id,
+                request.data
             );
 
         default:
-            throw new Error(`Unknown action: ${action}`);
+            // This is now unreachable if all cases are covered, but good for safety
+            const _exhaustiveCheck: never = request;
+            throw new Error(`Unknown action: ${(request as any).action}`);
     }
 }
 

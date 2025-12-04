@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rupavo_merchant_app/screens/login_screen.dart';
+import 'package:rupavo_merchant_app/screens/onboarding_screen.dart';
+import 'package:rupavo_merchant_app/screens/dashboard_screen.dart';
 import 'package:rupavo_merchant_app/services/auth_service.dart';
+import 'package:rupavo_merchant_app/services/shop_service.dart';
 import 'package:rupavo_merchant_app/theme/app_theme.dart';
+import 'package:rupavo_merchant_app/models/shop.dart';
 import 'env.dart';
 
 void main() async {
@@ -51,7 +55,24 @@ class AuthGate extends StatelessWidget {
         final session = snapshot.hasData ? snapshot.data!.session : null;
 
         if (session != null) {
-          return const MyHomePage(title: 'Rupavo Merchant Home');
+          // User is logged in, check if they have a shop
+          return FutureBuilder<Shop?>(
+            future: ShopService().getCurrentShop(),
+            builder: (context, shopSnapshot) {
+              if (shopSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              final shop = shopSnapshot.data;
+              if (shop != null) {
+                return DashboardScreen(shop: shop);
+              } else {
+                return const OnboardingScreen();
+              }
+            },
+          );
         } else {
           return const LoginScreen();
         }
@@ -60,48 +81,4 @@ class AuthGate extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
 
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  final AuthService _authService = AuthService();
-
-  @override
-  Widget build(BuildContext context) {
-    final user = _authService.currentUser;
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await _authService.signOut();
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (user != null) ...[
-              Text('Logged in as: ${user.email}'),
-              const SizedBox(height: 10),
-              Text('User ID: ${user.id}'),
-            ] else
-              const Text('Not logged in'),
-          ],
-        ),
-      ),
-    );
-  }
-}

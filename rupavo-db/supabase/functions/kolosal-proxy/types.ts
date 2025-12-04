@@ -668,14 +668,56 @@ export type KolosalAction =
     | "features.order.get"
     | "features.order.update";
 
-export interface KolosalProxyRequest {
-    action: KolosalAction;
-    data?: Record<string, unknown>;
-    // Path parameters for dynamic endpoints
-    workspace_id?: string;
-    category_id?: string;
-    feature_id?: string;
-}
+export type KolosalProxyRequest =
+    // Health
+    | { action: "health"; data?: undefined }
+    | { action: "health.detailed"; data?: undefined }
+    // OCR
+    | { action: "ocr"; data: OcrRequest }
+    | { action: "ocr.form"; data?: Record<string, unknown> } // Form data is special
+    // Chat
+    | { action: "chat.completions"; data: ChatCompletionRequest }
+    // Models
+    | { action: "models.list"; data?: undefined }
+    // Agent
+    | { action: "agent.generate"; data: AgentRequest }
+    | { action: "agent.generate.stream"; data: AgentRequest }
+    | { action: "agent.stats"; data?: undefined }
+    | { action: "agent.tools"; data?: undefined }
+    // Object Detection
+    | { action: "detect.health"; data?: undefined }
+    | { action: "detect.stats"; data?: undefined }
+    | { action: "cache.stats"; data?: undefined }
+    | { action: "cache.clear"; data?: undefined }
+    | { action: "segment"; data?: Record<string, unknown> } // Form data
+    | { action: "segment.base64"; data: SegmentJsonRequest }
+    // Workspaces
+    | { action: "workspaces.list"; data?: undefined }
+    | { action: "workspaces.create"; data: CreateWorkspaceRequest }
+    | { action: "workspaces.get"; workspace_id: string; data?: undefined }
+    | { action: "workspaces.update"; workspace_id: string; data: UpdateWorkspaceRequest }
+    | { action: "workspaces.delete"; workspace_id: string; data?: undefined }
+    | { action: "workspaces.order.get"; data?: undefined }
+    | { action: "workspaces.order.update"; data: UpdateWorkspaceOrderRequest }
+    | { action: "workspaces.order.stats"; data?: undefined }
+    | { action: "workspaces.stats"; data?: undefined }
+    | { action: "workspaces.status"; workspace_id: string; data?: undefined }
+    // Categories
+    | { action: "categories.list"; workspace_id: string; data?: undefined }
+    | { action: "categories.create"; workspace_id: string; data: CreateCategoryRequest }
+    | { action: "categories.get"; workspace_id: string; category_id: string; data?: undefined }
+    | { action: "categories.update"; workspace_id: string; category_id: string; data: UpdateCategoryRequest }
+    | { action: "categories.delete"; workspace_id: string; category_id: string; data?: undefined }
+    | { action: "categories.order.get"; workspace_id: string; data?: undefined }
+    | { action: "categories.order.update"; workspace_id: string; data: UpdateCategoryOrderRequest }
+    // Features
+    | { action: "features.list"; workspace_id: string; category_id: string; data?: undefined }
+    | { action: "features.create"; workspace_id: string; category_id: string; data: CreateFeatureRequest }
+    | { action: "features.get"; workspace_id: string; category_id: string; feature_id: string; data?: undefined }
+    | { action: "features.update"; workspace_id: string; category_id: string; feature_id: string; data: UpdateFeatureRequest }
+    | { action: "features.delete"; workspace_id: string; category_id: string; feature_id: string; data?: undefined }
+    | { action: "features.order.get"; workspace_id: string; category_id: string; data?: undefined }
+    | { action: "features.order.update"; workspace_id: string; category_id: string; data: UpdateFeatureOrderRequest };
 
 export interface KolosalProxyResponse<T = unknown> {
     success: boolean;
