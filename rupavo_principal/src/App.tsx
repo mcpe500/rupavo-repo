@@ -21,6 +21,7 @@ import { dataProvider, liveProvider } from "@refinedev/supabase";
 import { App as AntdApp } from "antd";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router";
 import authProvider from "./authProvider";
+import { Title } from "./components/title";
 import { Header } from "./components/header";
 import { ColorModeContextProvider } from "./contexts/color-mode";
 import {
@@ -88,7 +89,8 @@ function App() {
                       >
                         <ThemedLayout
                           Header={Header}
-                          Sider={(props) => <ThemedSider {...props} fixed />}
+                          Sider={(props) => <ThemedSider {...props} fixed Title={Title} />}
+                          Title={Title}
                         >
                           <Outlet />
                         </ThemedLayout>
@@ -128,6 +130,7 @@ function App() {
                       element={
                         <AuthPage
                           type="login"
+                          title={<Title collapsed={false} />}
                           formProps={{
                             initialValues: {
                               email: "info@refine.dev",
@@ -139,11 +142,11 @@ function App() {
                     />
                     <Route
                       path="/register"
-                      element={<AuthPage type="register" />}
+                      element={<AuthPage type="register" title={<Title collapsed={false} />} />}
                     />
                     <Route
                       path="/forgot-password"
-                      element={<AuthPage type="forgotPassword" />}
+                      element={<AuthPage type="forgotPassword" title={<Title collapsed={false} />} />}
                     />
                   </Route>
                 </Routes>
