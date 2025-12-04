@@ -1,4 +1,3 @@
-import { RefineThemes } from "@refinedev/antd";
 import { ConfigProvider, theme } from "antd";
 import {
   type PropsWithChildren,
@@ -6,6 +5,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { lightTheme, darkTheme } from "../../theme";
 
 type ColorModeContextType = {
   mode: string;
@@ -43,6 +43,9 @@ export const ColorModeContextProvider: React.FC<PropsWithChildren> = ({
 
   const { darkAlgorithm, defaultAlgorithm } = theme;
 
+  // Use Rupavo theme based on mode
+  const currentTheme = mode === "light" ? lightTheme : darkTheme;
+
   return (
     <ColorModeContext.Provider
       value={{
@@ -51,9 +54,8 @@ export const ColorModeContextProvider: React.FC<PropsWithChildren> = ({
       }}
     >
       <ConfigProvider
-        // you can change the theme colors here. example: ...RefineThemes.Magenta,
         theme={{
-          ...RefineThemes.Blue,
+          ...currentTheme,
           algorithm: mode === "light" ? defaultAlgorithm : darkAlgorithm,
         }}
       >

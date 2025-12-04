@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:rupavo_merchant_app/screens/login_screen.dart';
 import 'package:rupavo_merchant_app/services/auth_service.dart';
+import 'package:rupavo_merchant_app/theme/app_theme.dart';
 import 'env.dart';
 
 void main() async {
@@ -25,10 +26,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Rupavo Merchant',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: ThemeMode.system,
       home: const AuthGate(),
     );
   }
