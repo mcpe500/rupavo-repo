@@ -1,15 +1,13 @@
 import 'package:google_sign_in/google_sign_in.dart' as google_sign_in;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:rupavo_merchant_app/env.dart';
 
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
+  
+  // IMPORTANT: Use Web Client ID (not Android Client ID) for Supabase
   final google_sign_in.GoogleSignIn _googleSignIn = google_sign_in.GoogleSignIn(
-    // Optional clientId
-    // clientId: '[YOUR_IOS_CLIENT_ID]',
-    // scopes: [
-    //   'email',
-    //   'https://www.googleapis.com/auth/contacts.readonly',
-    // ],
+    serverClientId: Env.googleWebClientId,  // Must be WEB Client ID
   );
 
   // Stream of auth state changes
