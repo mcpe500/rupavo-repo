@@ -232,7 +232,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 enum OnboardingStep { initial, askingName, askingDescription }
 
-enum ChatRole { user, assistant }
+enum ChatRole { user, assistant, system }
 
 class ChatMessage {
   final ChatRole role;

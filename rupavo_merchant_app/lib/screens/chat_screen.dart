@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:rupavo_merchant_app/screens/onboarding_screen.dart'; // Reuse ChatMessage & ChatRole
+import 'package:rupavo_merchant_app/screens/onboarding_screen.dart';
 import 'package:rupavo_merchant_app/services/supabase_functions_service.dart';
+import 'package:rupavo_merchant_app/services/conversation_memory_service.dart';
 import 'package:rupavo_merchant_app/theme/app_theme.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -16,20 +17,61 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final SupabaseFunctionsService _functionsService = SupabaseFunctionsService();
+  final ConversationMemoryService _memoryService = ConversationMemoryService();
 
-  final List<ChatMessage> _messages = [];
+  late List<ChatMessage> _messages = [];
+  late String _threadId;
   bool _isLoading = false;
+  bool _isLoadingHistory = true;
   String? _sessionId;
 
   @override
   void initState() {
     super.initState();
-    _addMessage(
-      ChatMessage(
-        role: ChatRole.assistant,
-        content: 'Halo! Ada yang bisa saya bantu untuk bisnis Anda hari ini?',
-      ),
-    );
+    // Generate thread ID untuk conversation ini
+    _threadId = DateTime.now().millisecondsSinceEpoch.toString();
+    _loadChatHistory();
+  }
+
+  /// Load chat history dari database
+  Future<void> _loadChatHistory() async {
+    try {
+      final contextMessages = await _memoryService.loadConversationContext(
+        shopId: widget.shopId,
+        threadId: _threadId,
+      );
+
+      setState(() {
+        _messages = contextMessages;
+        _isLoadingHistory = false;
+      });
+
+      // Auto-scroll ke bawah
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+
+      // Jika tidak ada history, tambahkan greeting
+      if (_messages.isEmpty) {
+        _addMessage(
+          ChatMessage(
+            role: ChatRole.assistant,
+            content: 'Halo! Ada yang bisa saya bantu untuk bisnis Anda hari ini?',
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error loading chat history: $e');
+      setState(() {
+        _isLoadingHistory = false;
+      });
+    }
   }
 
   void _addMessage(ChatMessage message) {
@@ -52,7 +94,15 @@ class _ChatScreenState extends State<ChatScreen> {
     if (text.isEmpty) return;
 
     _messageController.clear();
-    _addMessage(ChatMessage(role: ChatRole.user, content: text));
+    final userMessage = ChatMessage(role: ChatRole.user, content: text);
+    _addMessage(userMessage);
+
+    // Save user message to database
+    await _memoryService.saveMessage(
+      shopId: widget.shopId,
+      threadId: _threadId,
+      message: userMessage,
+    );
 
     setState(() {
       _isLoading = true;
@@ -66,12 +116,18 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       if (response.success && response.reply != null) {
-        _sessionId = response.sessionId; // Update session ID
-        _addMessage(
-          ChatMessage(
-            role: ChatRole.assistant,
-            content: response.reply!,
-          ),
+        _sessionId = response.sessionId;
+        final assistantMessage = ChatMessage(
+          role: ChatRole.assistant,
+          content: response.reply!,
+        );
+        _addMessage(assistantMessage);
+
+        // Save assistant message to database
+        await _memoryService.saveMessage(
+          shopId: widget.shopId,
+          threadId: _threadId,
+          message: assistantMessage,
         );
       } else {
         _addMessage(
@@ -105,62 +161,66 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[index];
-                final isUser = msg.role == ChatRole.user;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment:
-                        isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (!isUser) ...[
-                        CircleAvatar(
-                          backgroundColor: Colors.white,
-                          child: ClipOval(
-                            child: Image.asset(
-                              'assets/images/rupavo-image-2-removebg-preview.png',
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
+            child: _messages.isEmpty
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _messages[index];
+                      final isUser = msg.role == ChatRole.user;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          mainAxisAlignment:
+                              isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (!isUser) ...[
+                              CircleAvatar(
+                                backgroundColor: Colors.white,
+                                child: ClipOval(
+                                  child: Image.asset(
+                                    'assets/images/rupavo-image-2-removebg-preview.png',
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Container(
+                              margin: const EdgeInsets.symmetric(vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isUser
+                                    ? AppTheme.lightPrimary
+                                    : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(16).copyWith(
+                                  bottomRight: isUser ? Radius.zero : null,
+                                  bottomLeft: !isUser ? Radius.zero : null,
+                                ),
+                              ),
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.65,
+                              ),
+                              child: Text(
+                                msg.content,
+                                style: TextStyle(
+                                  color: isUser ? Colors.white : Colors.black87,
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                      ],
-                      Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isUser
-                              ? AppTheme.lightPrimary
-                              : Colors.grey[200],
-                          borderRadius: BorderRadius.circular(16).copyWith(
-                            bottomRight: isUser ? Radius.zero : null,
-                            bottomLeft: !isUser ? Radius.zero : null,
-                          ),
-                        ),
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.65,
-                        ),
-                        child: Text(
-                          msg.content,
-                          style: TextStyle(
-                            color: isUser ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
             ),
-          ),
           if (_isLoading)
             const Padding(
               padding: EdgeInsets.all(8.0),

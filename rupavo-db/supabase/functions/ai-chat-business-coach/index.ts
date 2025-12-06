@@ -202,6 +202,29 @@ Panduan:
             console.log(`4.5. Loaded ${conversationHistory.length} shop messages from database (shop_id)`);
         }
 
+        // 4.7. Optimize context window (token management)
+        // Estimate tokens: ~4 characters = 1 token
+        const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+        const maxContextTokens = 3000;
+        let contextTokenCount = 0;
+
+        // Start from most recent messages and keep within token limit
+        const optimizedHistory: any[] = [];
+        for (let i = conversationHistory.length - 1; i >= 0; i--) {
+          const msgTokens = estimateTokens(conversationHistory[i].content);
+          if (contextTokenCount + msgTokens <= maxContextTokens) {
+            optimizedHistory.unshift(conversationHistory[i]);
+            contextTokenCount += msgTokens;
+          } else {
+            console.log(`Token limit reached. Skipped ${i + 1} messages. Context tokens: ${contextTokenCount}`);
+            break;
+          }
+        }
+
+        conversationHistory = optimizedHistory;
+        console.log(`4.7. Optimized context: ${conversationHistory.length} messages (${contextTokenCount} tokens)`);
+
+
         // 8. Call Kolosal AI via chat completions
         console.log("5. Sending request to Kolosal AI (api.kolosal.ai)...");
 
