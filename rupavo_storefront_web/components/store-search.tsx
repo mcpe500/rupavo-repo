@@ -12,18 +12,31 @@ interface StoreSearchProps {
 export function StoreSearch({ initialStores }: StoreSearchProps) {
     const [searchQuery, setSearchQuery] = useState("");
 
-    const filteredStores = initialStores.filter((store) =>
-        store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        store.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const normalizedQuery = searchQuery.toLowerCase().trim();
+
+    const filteredStores = initialStores.filter((store) => {
+        if (!normalizedQuery) {
+            return true;
+        }
+
+        const description = store.description?.toLowerCase() ?? "";
+        return (
+            store.name.toLowerCase().includes(normalizedQuery) ||
+            description.includes(normalizedQuery) ||
+            store.slug.toLowerCase().includes(normalizedQuery)
+        );
+    });
 
     return (
         <div className="w-full max-w-5xl flex flex-col items-center mt-20 gap-8">
-
             {/* Branding */}
             <div className="flex flex-col items-center gap-2">
-                <h1 className="text-6xl font-bold tracking-tight text-primary">Rupavo</h1>
-                <p className="text-muted-foreground">Find the best stores near you</p>
+                <h1 className="text-6xl font-bold tracking-tight text-primary">
+                    Rupavo
+                </h1>
+                <p className="text-muted-foreground">
+                    Find the best stores near you
+                </p>
             </div>
 
             {/* Search Bar */}
@@ -52,7 +65,6 @@ export function StoreSearch({ initialStores }: StoreSearchProps) {
                     </div>
                 )}
             </div>
-
         </div>
     );
 }
