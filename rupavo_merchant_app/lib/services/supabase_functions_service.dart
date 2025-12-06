@@ -132,12 +132,16 @@ class ChatResponse {
   final String? reply;
   final String? sessionId;
   final String? error;
+  final String? action; // e.g., 'shop_created', 'product_added'
+  final Map<String, dynamic>? data;
 
   ChatResponse({
     required this.success,
     this.reply,
     this.sessionId,
     this.error,
+    this.action,
+    this.data,
   });
 
   factory ChatResponse.fromJson(Map<String, dynamic> json) {
@@ -146,6 +150,8 @@ class ChatResponse {
       reply: json['reply'] as String?,
       sessionId: json['session_id'] as String?,
       error: json['error'] as String?,
+      action: json['action'] as String?,
+      data: json['data'] as Map<String, dynamic>?,
     );
   }
 }

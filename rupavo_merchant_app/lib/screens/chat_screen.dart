@@ -112,29 +112,50 @@ class _ChatScreenState extends State<ChatScreen> {
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 final isUser = msg.role == ChatRole.user;
-                return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isUser
-                          ? AppTheme.lightPrimary
-                          : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(16).copyWith(
-                        bottomRight: isUser ? Radius.zero : null,
-                        bottomLeft: !isUser ? Radius.zero : null,
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment:
+                        isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!isUser) ...[
+                        CircleAvatar(
+                          backgroundColor: Colors.white,
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/rupavo-image-2-removebg-preview.png',
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: isUser
+                              ? AppTheme.lightPrimary
+                              : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(16).copyWith(
+                            bottomRight: isUser ? Radius.zero : null,
+                            bottomLeft: !isUser ? Radius.zero : null,
+                          ),
+                        ),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.65,
+                        ),
+                        child: Text(
+                          msg.content,
+                          style: TextStyle(
+                            color: isUser ? Colors.white : Colors.black87,
+                          ),
+                        ),
                       ),
-                    ),
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
-                    child: Text(
-                      msg.content,
-                      style: TextStyle(
-                        color: isUser ? Colors.white : Colors.black87,
-                      ),
-                    ),
+                    ],
                   ),
                 );
               },

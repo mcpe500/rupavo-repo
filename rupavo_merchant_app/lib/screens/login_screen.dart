@@ -57,13 +57,27 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo or App Name could go here
+              // Rupavo Logo
+              Image.asset(
+                'assets/images/rupavo-image-1-removebg-preview.png',
+                height: 200,
+              ),
+              const SizedBox(height: 24),
               const Text(
                 'Rupavo Merchant',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Asisten Bisnis Cerdas untuk UMKM',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
               if (_isLoading)

@@ -28,9 +28,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _isLoading = false;
   String? _sessionId;
 
-  OnboardingStep _step = OnboardingStep.initial;
-  String? _shopName;
-  String? _shopDesc;
+  // OnboardingStep _step = OnboardingStep.initial; // Removed: Agentic now
+  // String? _shopName; // Removed
+  // String? _shopDesc; // Removed
 
   @override
   void initState() {
@@ -74,7 +74,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     try {
       // Call Supabase Edge Function
-      // Note: We're sending 'onboarding' as shopId. Make sure backend handles this or validation is permissive.
       final response = await _functionsService.chatWithRupavo(
         shopId: 'onboarding',
         message: text,
@@ -85,20 +84,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _sessionId = response.sessionId;
         _addMessage(ChatMessage(role: ChatRole.assistant, content: response.reply!));
 
-        // Conversational State Machine to capture Shop Name/Desc
-        // Ideally AI returns structured data, but for now we rely on the flow steps.
-        if (_step == OnboardingStep.initial) {
-          _step = OnboardingStep.askingName;
-        } else if (_step == OnboardingStep.askingName) {
-           _shopName = text;
-           _step = OnboardingStep.askingDescription;
-        } else if (_step == OnboardingStep.askingDescription) {
-          _shopDesc = text;
+        // Handle Agentic Actions
+        if (response.action == 'shop_created') {
            _addMessage(ChatMessage(
-             role: ChatRole.assistant,
-             content: 'Baik, sedang menyiapkan toko "$_shopName" untuk Anda...',
+             role: ChatRole.assistant, 
+             content: '✅ Toko berhasil dibuat! Mengalihkan ke Dashboard...',
            ));
-          await _createShop();
+           
+           await Future.delayed(const Duration(seconds: 2));
+           
+           if (mounted) {
+             Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const AuthGate()),
+             );
+           }
         }
 
       } else {
@@ -109,45 +108,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _addMessage(ChatMessage(role: ChatRole.assistant, content: 'Error: $e'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _createShop() async {
-    try {
-       final slug = _shopName!.toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9]'), '-')
-          .replaceAll(RegExp(r'-+'), '-')
-          .replaceAll(RegExp(r'^-|-$'), '');
-      
-      // Check availability (simplified)
-      final isAvailable = await _shopService.isSlugAvailable(slug);
-      final finalSlug = isAvailable ? slug : '$slug-${DateTime.now().millisecondsSinceEpoch}';
-
-      await _shopService.createShop(
-        name: _shopName!,
-        slug: finalSlug,
-        description: _shopDesc ?? '',
-        businessType: 'general',
-      );
-      
-      _addMessage(ChatMessage(
-        role: ChatRole.assistant,
-        content: 'Toko berhasil dibuat! Mengalihkan ke Dashboard...',
-      ));
-      
-      await Future.delayed(const Duration(seconds: 1));
-      
-      if (mounted) {
-         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AuthGate()),
-        );
-      }
-    } catch (e) {
-       _addMessage(ChatMessage(
-        role: ChatRole.assistant,
-        content: 'Gagal membuat toko: $e. Silakan coba nama lain.',
-      ));
-      _step = OnboardingStep.askingName; // Reset to name (retry)
     }
   }
 
@@ -188,10 +148,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (!isUser) ...[
-                        const CircleAvatar(
-                          backgroundImage: NetworkImage(
-                              'https://api.dicebear.com/7.x/avataaars/png?seed=Rupavo'), // Placeholder
+                        CircleAvatar(
                           backgroundColor: Colors.white,
+                          child: ClipOval(
+                            child: Image.asset(
+                              'assets/images/rupavo-image-2-removebg-preview.png',
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 8),
                       ],
@@ -268,11 +234,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: TextField(
                       controller: _messageController,
                       decoration: InputDecoration(
-                        hintText: _step == OnboardingStep.askingName
-                            ? 'Nama Toko...'
-                            : (_step == OnboardingStep.askingDescription
-                                ? 'Deskripsi...'
-                                : 'Type message...'),
+                        hintText: 'Tulis pesan...',
                         border: InputBorder.none,
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 8, vertical: 12),

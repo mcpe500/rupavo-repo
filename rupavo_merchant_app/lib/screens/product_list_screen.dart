@@ -44,10 +44,25 @@ class _ProductListScreenState extends State<ProductListScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text('Belum ada produk'),
+                  Image.asset(
+                    'assets/images/rupavo-image-4-removebg-preview.png',
+                    height: 150,
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Belum ada produk',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 8),
+                  const Text(
+                    'Mulai jualan dengan menambahkan produk pertama',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => _navigateToAddProduct(context),
                     child: const Text('Tambah Produk Pertama'),
