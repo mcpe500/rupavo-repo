@@ -83,22 +83,41 @@ export default async function RootSlugPage({ params }: RootSlugPageProps) {
         .limit(50)
         .returns<Product[]>();
 
-    // Parse layout data with proper typing
-    const layout = storefrontLayout as StorefrontLayout | null;
-    console.log({layout})
-    const theme: Theme = layout?.theme || defaultTheme;
-    const visualStyle: VisualStyle = layout?.visual_style || defaultVisualStyle;
-    const hero: Hero | null = layout?.hero || null;
-    const sections: Section[] = layout?.sections || [];
-    const floatingElements: Section[] = layout?.floating_elements || [];
-    const footer: Footer | null = layout?.footer || null;
+    // Parse layout data - database has nested structure:
+    // storefrontLayout.theme (at root)
+    // storefrontLayout.layout.hero (nested)
+    // storefrontLayout.layout.sections (nested)
+    // storefrontLayout.layout.footer (nested)
+    // storefrontLayout.layout.visual_style (nested)
+    // storefrontLayout.layout.typography (nested)
+    // storefrontLayout.layout.floating_elements (nested)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawLayout = storefrontLayout as any;
+
+    // Theme is at root level
+    const theme: Theme = rawLayout?.theme || defaultTheme;
+
+    // Hero, sections, footer, visual_style are inside nested 'layout' object
+    const nestedLayout = rawLayout?.layout || {};
+    const visualStyle: VisualStyle = nestedLayout?.visual_style || rawLayout?.visual_style || defaultVisualStyle;
+    const hero: Hero | null = nestedLayout?.hero || rawLayout?.hero || null;
+    const sections: Section[] = nestedLayout?.sections || rawLayout?.sections || [];
+    const floatingElements: Section[] = nestedLayout?.floating_elements || rawLayout?.floating_elements || [];
+    const footer: Footer | null = nestedLayout?.footer || rawLayout?.footer || null;
+    const typography = nestedLayout?.typography || rawLayout?.typography || null;
+
+    // Debug logging
+    console.log('[Storefront] Theme:', theme);
+    console.log('[Storefront] Hero:', hero);
+    console.log('[Storefront] Sections:', sections.length, sections.map(s => s.type));
 
     return (
         <main
             className="min-h-screen"
             style={{
                 backgroundColor: theme.background_color,
-                fontFamily: layout?.typography?.body_font || 'Inter, sans-serif',
+                fontFamily: typography?.body_font || 'Inter, sans-serif',
             }}
         >
             {/* Announcement Bar (if present in sections) */}

@@ -1,6 +1,18 @@
 'use client';
 
-import { BannerPromoSection, Theme } from '../../types/storefront';
+import { Theme } from '../../types/storefront';
+
+// Flexible Banner Promo section type
+interface BannerPromoSection {
+    type: 'banner_promo';
+    title?: string;
+    subtitle?: string;
+    description?: string; // AI sometimes uses 'description' instead of 'subtitle'
+    cta_label?: string;
+    cta_url?: string;
+    background_color?: string;
+    text_color?: string;
+}
 
 interface BannerPromoProps {
     section: BannerPromoSection;
@@ -10,6 +22,9 @@ interface BannerPromoProps {
 export function BannerPromo({ section, theme }: BannerPromoProps) {
     const bgColor = section.background_color || theme.secondary_color;
     const textColor = section.text_color || '#ffffff';
+
+    // Accept both 'subtitle' and 'description'
+    const subtitle = section.subtitle || section.description;
 
     return (
         <div
@@ -23,9 +38,9 @@ export function BannerPromo({ section, theme }: BannerPromoProps) {
                 <h2 className="text-3xl md:text-4xl font-bold mb-3">
                     {section.title}
                 </h2>
-                {section.subtitle && (
+                {subtitle && (
                     <p className="text-lg md:text-xl opacity-90 mb-6">
-                        {section.subtitle}
+                        {subtitle}
                     </p>
                 )}
                 {section.cta_label && (

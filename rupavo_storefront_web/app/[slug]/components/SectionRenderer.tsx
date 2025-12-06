@@ -26,7 +26,8 @@ import { Gallery } from './sections/Gallery';
 import { BundleShowcase } from './sections/BundleShowcase';
 
 interface SectionRendererProps {
-    section: Section;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    section: Section | any; // Accept any format from AI
     products: Product[];
     theme: Theme;
     visualStyle: VisualStyle;
