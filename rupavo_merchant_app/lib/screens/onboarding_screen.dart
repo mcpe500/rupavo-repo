@@ -124,21 +124,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // Light gray bg
       appBar: AppBar(
         title: const Text(
-          'Chat with Rupavo',
+          'Setup Toko Baru',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_horiz),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -172,37 +163,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         const SizedBox(width: 8),
                       ],
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
                           color: isUser
                               ? Theme.of(context).colorScheme.primary
-                              : Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(20),
-                            topRight: const Radius.circular(20),
-                            bottomLeft: Radius.circular(isUser ? 20 : 0),
-                            bottomRight: Radius.circular(isUser ? 0 : 20),
+                              : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(16).copyWith(
+                            bottomRight: isUser ? Radius.zero : null,
+                            bottomLeft: !isUser ? Radius.zero : null,
                           ),
-                          boxShadow: [
-                            if (!isUser)
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                          ],
                         ),
                         constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.7,
+                          maxWidth: MediaQuery.of(context).size.width * 0.65,
                         ),
                         child: Text(
                           msg.content,
                           style: TextStyle(
-                            color: isUser
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Colors.black87,
-                            fontSize: 16,
+                            color: isUser ? Colors.white : Colors.black87,
                           ),
                         ),
                       ),
@@ -213,103 +191,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           if (_isLoading)
-             Container(
-               margin: const EdgeInsets.only(bottom: 8),
-               child: const LinearProgressIndicator(),
-             ),
-          SafeArea(
-            child: Container(
-              margin: const EdgeInsets.all(16.0),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.mic, color: Colors.grey),
-                    onPressed: () {
-                      // Voice input placeholder
-                    },
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        hintText: 'Tulis pesan...',
-                        border: InputBorder.none,
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: LinearProgressIndicator(),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Tulis pesan...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      onSubmitted: (_) => _sendMessage(),
-                      enabled: !_isLoading,
-                      textInputAction: TextInputAction.send,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
+                    onSubmitted: (_) => _sendMessage(),
+                    enabled: !_isLoading,
                   ),
-                  Container(
-                    margin: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200], // Or Theme primary if preferred
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_upward, color: Colors.black54),
-                      onPressed: _isLoading ? null : _sendMessage,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _isLoading ? null : _sendMessage,
+                  icon: const Icon(Icons.send),
+                ),
+              ],
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2, // AI Assistant selected
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined),
-            label: 'Products',
-          ),
-          BottomNavigationBarItem(
-            icon: CircleAvatar(
-              radius: 24,
-              backgroundColor: Color(0xFF13EC5B), // Brand Green
-              child: Icon(Icons.mic, color: Colors.white),
-            ),
-            label: 'AI Assistant',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long_outlined),
-            label: 'Sales',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.storefront_outlined),
-            label: 'Shop',
-          ),
-        ],
-        onTap: (index) {
-          if (index != 2) {
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('Selesaikan pembuatan toko terlebih dahulu!')),
-             );
-          }
-        },
       ),
     );
   }
