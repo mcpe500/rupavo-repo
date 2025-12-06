@@ -9,12 +9,14 @@ import 'package:rupavo_merchant_app/services/tool_call_parser.dart';
 import 'package:rupavo_merchant_app/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rupavo_merchant_app/services/storage_service.dart';
+import 'package:rupavo_merchant_app/screens/chat_history_screen.dart';
 import 'package:uuid/uuid.dart';
 
 class ChatScreen extends StatefulWidget {
   final String shopId;
+  final String? resumeThreadId; // Optional: resume previous chat
 
-  const ChatScreen({super.key, required this.shopId});
+  const ChatScreen({super.key, required this.shopId, this.resumeThreadId});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -39,8 +41,8 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    // Generate thread ID untuk conversation ini
-    _threadId = const Uuid().v4();
+    // Use resume thread ID if provided, otherwise generate new one
+    _threadId = widget.resumeThreadId ?? const Uuid().v4();
     _loadChatHistory();
   }
 
@@ -318,8 +320,22 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Business Coach'),
+        title: const Text('Rupavo Coach'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Riwayat Chat',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatHistoryScreen(shopId: widget.shopId),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

@@ -197,4 +197,291 @@ class ConversationMemoryService {
       print('Error creating summary: $e');
     }
   }
+
+  // ============================================================
+  // NEW: Chat History Management Features
+  // ============================================================
+
+  /// Get all conversation threads for a shop
+  Future<List<ConversationThread>> getConversationThreads({
+    required String shopId,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('ai_conversations')
+          .select('thread_id, created_at, content, role')
+          .eq('shop_id', shopId)
+          .order('created_at', ascending: false);
+
+      // Group by thread_id
+      final Map<String, ConversationThread> threadMap = {};
+      
+      for (final msg in response) {
+        final threadId = msg['thread_id'] as String;
+        if (!threadMap.containsKey(threadId)) {
+          threadMap[threadId] = ConversationThread(
+            threadId: threadId,
+            lastMessage: msg['content'] as String,
+            lastMessageTime: DateTime.parse(msg['created_at'] as String),
+            messageCount: 1,
+          );
+        } else {
+          threadMap[threadId] = threadMap[threadId]!.copyWith(
+            messageCount: threadMap[threadId]!.messageCount + 1,
+          );
+        }
+      }
+
+      return threadMap.values.toList();
+    } catch (e) {
+      print('Error getting threads: $e');
+      return [];
+    }
+  }
+
+  /// Search messages by keyword
+  Future<List<SearchResult>> searchMessages({
+    required String shopId,
+    required String query,
+  }) async {
+    try {
+      final response = await _supabase
+          .from('ai_conversations')
+          .select()
+          .eq('shop_id', shopId)
+          .ilike('content', '%$query%')
+          .order('created_at', ascending: false)
+          .limit(50);
+
+      return (response as List).map((msg) => SearchResult(
+        messageId: msg['id'] as String,
+        threadId: msg['thread_id'] as String,
+        role: _parseRole(msg['role'] as String),
+        content: msg['content'] as String,
+        createdAt: DateTime.parse(msg['created_at'] as String),
+        highlightedContent: _highlightQuery(msg['content'] as String, query),
+      )).toList();
+    } catch (e) {
+      print('Error searching messages: $e');
+      return [];
+    }
+  }
+
+  String _highlightQuery(String content, String query) {
+    return content.replaceAll(
+      RegExp(query, caseSensitive: false),
+      '**$query**',
+    );
+  }
+
+  /// Delete a single message
+  Future<bool> deleteMessage({required String messageId}) async {
+    try {
+      await _supabase
+          .from('ai_conversations')
+          .delete()
+          .eq('id', messageId);
+      return true;
+    } catch (e) {
+      print('Error deleting message: $e');
+      return false;
+    }
+  }
+
+  /// Delete entire conversation thread
+  Future<bool> deleteThread({
+    required String shopId,
+    required String threadId,
+  }) async {
+    try {
+      await _supabase
+          .from('ai_conversations')
+          .delete()
+          .eq('shop_id', shopId)
+          .eq('thread_id', threadId);
+      return true;
+    } catch (e) {
+      print('Error deleting thread: $e');
+      return false;
+    }
+  }
+
+  /// Clear all conversations for a shop
+  Future<bool> clearAllConversations({required String shopId}) async {
+    try {
+      await _supabase
+          .from('ai_conversations')
+          .delete()
+          .eq('shop_id', shopId);
+      return true;
+    } catch (e) {
+      print('Error clearing conversations: $e');
+      return false;
+    }
+  }
+
+  /// Get all messages for export
+  Future<List<Map<String, dynamic>>> exportConversations({
+    required String shopId,
+    String? threadId,
+  }) async {
+    try {
+      // Build filter first, then order
+      var filter = _supabase
+          .from('ai_conversations')
+          .select()
+          .eq('shop_id', shopId);
+
+      if (threadId != null) {
+        filter = filter.eq('thread_id', threadId);
+      }
+
+      final response = await filter.order('created_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Error exporting conversations: $e');
+      return [];
+    }
+  }
+
+  /// Extract AI knowledge summary from conversations
+  Future<AiKnowledgeSummary> extractAiKnowledge({
+    required String shopId,
+  }) async {
+    try {
+      final messages = await _supabase
+          .from('ai_conversations')
+          .select('content, role')
+          .eq('shop_id', shopId)
+          .order('created_at', ascending: true);
+
+      String shopName = '';
+      String businessType = '';
+      List<String> products = [];
+      List<String> preferences = [];
+      
+      for (final msg in messages) {
+        final content = (msg['content'] as String).toLowerCase();
+        
+        // Extract shop name mentions
+        if (content.contains('nama toko') || content.contains('toko')) {
+          final match = RegExp(r'(?:nama toko|toko[:\s]+)([^\n,]+)', caseSensitive: false)
+              .firstMatch(msg['content'] as String);
+          if (match != null && shopName.isEmpty) {
+            shopName = match.group(1)?.trim() ?? '';
+          }
+        }
+
+        // Extract business type
+        if (content.contains('fnb') || content.contains('makanan') || content.contains('minuman')) {
+          businessType = 'FNB';
+        } else if (content.contains('retail') || content.contains('toko')) {
+          businessType = businessType.isEmpty ? 'Retail' : businessType;
+        } else if (content.contains('jasa') || content.contains('service')) {
+          businessType = businessType.isEmpty ? 'Jasa' : businessType;
+        }
+
+        // Extract products
+        if (content.contains('produk') || content.contains('menu') || content.contains('item')) {
+          final productMatch = RegExp(r'(?:produk|menu|item)[:\s]+([^\n]+)', caseSensitive: false)
+              .firstMatch(msg['content'] as String);
+          if (productMatch != null) {
+            products.add(productMatch.group(1)?.trim() ?? '');
+          }
+        }
+
+        // Extract price mentions
+        if (content.contains('harga') || content.contains('rp')) {
+          final priceMatch = RegExp(r'(?:harga|rp)[:\s]*(\d+)', caseSensitive: false)
+              .firstMatch(msg['content'] as String);
+          if (priceMatch != null) {
+            preferences.add('Harga: Rp ${priceMatch.group(1)}');
+          }
+        }
+      }
+
+      return AiKnowledgeSummary(
+        shopName: shopName,
+        businessType: businessType,
+        products: products.take(10).toList(),
+        preferences: preferences.take(5).toList(),
+        totalMessages: messages.length,
+      );
+    } catch (e) {
+      print('Error extracting knowledge: $e');
+      return AiKnowledgeSummary(
+        shopName: '',
+        businessType: '',
+        products: [],
+        preferences: [],
+        totalMessages: 0,
+      );
+    }
+  }
+}
+
+// ============================================================
+// Data Classes
+// ============================================================
+
+class ConversationThread {
+  final String threadId;
+  final String lastMessage;
+  final DateTime lastMessageTime;
+  final int messageCount;
+
+  ConversationThread({
+    required this.threadId,
+    required this.lastMessage,
+    required this.lastMessageTime,
+    required this.messageCount,
+  });
+
+  ConversationThread copyWith({
+    String? threadId,
+    String? lastMessage,
+    DateTime? lastMessageTime,
+    int? messageCount,
+  }) {
+    return ConversationThread(
+      threadId: threadId ?? this.threadId,
+      lastMessage: lastMessage ?? this.lastMessage,
+      lastMessageTime: lastMessageTime ?? this.lastMessageTime,
+      messageCount: messageCount ?? this.messageCount,
+    );
+  }
+}
+
+class SearchResult {
+  final String messageId;
+  final String threadId;
+  final ChatRole role;
+  final String content;
+  final DateTime createdAt;
+  final String highlightedContent;
+
+  SearchResult({
+    required this.messageId,
+    required this.threadId,
+    required this.role,
+    required this.content,
+    required this.createdAt,
+    required this.highlightedContent,
+  });
+}
+
+class AiKnowledgeSummary {
+  final String shopName;
+  final String businessType;
+  final List<String> products;
+  final List<String> preferences;
+  final int totalMessages;
+
+  AiKnowledgeSummary({
+    required this.shopName,
+    required this.businessType,
+    required this.products,
+    required this.preferences,
+    required this.totalMessages,
+  });
 }
