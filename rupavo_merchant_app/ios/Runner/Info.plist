@@ -45,6 +45,10 @@
 	<string>Izinkan Rupavo mengakses foto untuk menambahkan gambar produk.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Izinkan Rupavo menggunakan kamera untuk mengambil foto produk.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Izinkan Rupavo menggunakan pengenalan suara untuk input pesan.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Izinkan Rupavo mengakses mikrofon untuk input suara.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

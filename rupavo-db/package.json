@@ -22,6 +22,7 @@
     "func:deploy:chat": "npx supabase functions deploy ai-chat-business-coach --debug",
     "func:deploy:product": "npx supabase functions deploy ai-generate-product-copy --debug",
     "func:deploy:report": "npx supabase functions deploy ai-generate-report --debug",
+    "func:deploy:storefront": "npx supabase functions deploy ai-generate-storefront --debug",
     "func:deploy:proxy": "npx supabase functions deploy kolosal-proxy --debug",
     "func:serve": "npx supabase functions serve",
     "secrets:list": "npx supabase secrets list",

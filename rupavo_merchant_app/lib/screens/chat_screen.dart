@@ -9,6 +9,7 @@ import 'package:rupavo_merchant_app/services/tool_call_parser.dart';
 import 'package:rupavo_merchant_app/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rupavo_merchant_app/services/storage_service.dart';
+import 'package:rupavo_merchant_app/services/voice_service.dart';
 import 'package:rupavo_merchant_app/screens/chat_history_screen.dart';
 import 'package:uuid/uuid.dart';
 
@@ -29,11 +30,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final ConversationMemoryService _memoryService = ConversationMemoryService();
   final SupabaseClient _supabase = Supabase.instance.client;
   final StorageService _storageService = StorageService();
+  final VoiceService _voiceService = VoiceService();
 
   late List<ChatMessage> _messages = [];
   late String _threadId;
   bool _isLoading = false;
   bool _isLoadingHistory = true;
+  bool _isListening = false;
   String? _sessionId;
   ProductPreview? _pendingProduct;
   bool _isProcessingAction = false;
@@ -44,6 +47,23 @@ class _ChatScreenState extends State<ChatScreen> {
     // Use resume thread ID if provided, otherwise generate new one
     _threadId = widget.resumeThreadId ?? const Uuid().v4();
     _loadChatHistory();
+    _initializeVoice();
+  }
+
+  Future<void> _initializeVoice() async {
+    try {
+      await _voiceService.initSpeech();
+    } catch (e) {
+      print('Error initializing voice: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    _voiceService.dispose();
+    super.dispose();
   }
 
   /// Load chat history dari database
@@ -84,6 +104,86 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _isLoadingHistory = false;
       });
+    }
+  }
+
+  Future<void> _startVoiceInput() async {
+    setState(() {
+      _isListening = true;
+    });
+
+    try {
+      final started = await _voiceService.startListening(
+        onPartial: (text) {
+          // Update text field in real-time as user speaks
+          if (mounted) {
+            setState(() {
+              _messageController.text = text;
+              // Move cursor to end
+              _messageController.selection = TextSelection.fromPosition(
+                TextPosition(offset: _messageController.text.length),
+              );
+            });
+          }
+        },
+        onFinal: (text) {
+          // Final result - user finished speaking
+          if (mounted && text.isNotEmpty) {
+            setState(() {
+              _messageController.text = text;
+              _isListening = false;
+            });
+          }
+        },
+      );
+
+      if (!started) {
+        setState(() {
+          _isListening = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tidak bisa memulai input suara'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Voice input error: $e');
+      setState(() {
+        _isListening = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error dengan input suara'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _stopVoiceInput() async {
+    try {
+      final result = await _voiceService.stopListening();
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+          if (result.isNotEmpty) {
+            _messageController.text = result;
+          }
+        });
+      }
+    } catch (e) {
+      print('Error stopping voice: $e');
+      if (mounted) {
+        setState(() {
+          _isListening = false;
+        });
+      }
     }
   }
 
@@ -423,6 +523,14 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                     onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _isListening ? _stopVoiceInput : _startVoiceInput,
+                  icon: Icon(_isListening ? Icons.mic : Icons.mic_none),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _isListening ? Colors.red : null,
                   ),
                 ),
                 const SizedBox(width: 8),
