@@ -17,6 +17,14 @@ export const OrderList = () => {
     meta: {
       select: "*, shops(id,name)",
     },
+    sorters: {
+      initial: [
+        {
+          field: "created_at",
+          order: "desc",
+        },
+      ],
+    },
   });
 
   const {
@@ -35,10 +43,29 @@ export const OrderList = () => {
     switch (status) {
       case "completed":
         return "green";
+      case "confirmed":
+        return "cyan";
       case "draft":
         return "blue";
       case "cancelled":
         return "red";
+      default:
+        return "default";
+    }
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "green";
+      case "pending":
+        return "orange";
+      case "failed":
+        return "red";
+      case "expired":
+        return "default";
+      case "refunded":
+        return "purple";
       default:
         return "default";
     }
@@ -71,11 +98,30 @@ export const OrderList = () => {
           )}
         />
         <Table.Column
+          dataIndex="order_type"
+          title="Type"
+          render={(value: string) => (
+            <TagField value={value || "manual"} />
+          )}
+        />
+        <Table.Column
           dataIndex="status"
           title="Status"
           render={(value: string) => (
             <TagField color={getStatusColor(value)} value={value} />
           )}
+        />
+        <Table.Column
+          dataIndex="payment_status"
+          title="Payment"
+          render={(value: string) => (
+            <TagField color={getPaymentStatusColor(value)} value={value || "N/A"} />
+          )}
+        />
+        <Table.Column
+          dataIndex="payment_method"
+          title="Payment Method"
+          render={(value: string) => value || "-"}
         />
         <Table.Column
           dataIndex="total_amount"
@@ -90,7 +136,11 @@ export const OrderList = () => {
             />
           )}
         />
-        <Table.Column dataIndex="buyer_name" title="Buyer" />
+        <Table.Column 
+          dataIndex="customer_name" 
+          title="Customer" 
+          render={(value: string, record: any) => value || record.buyer_name || "-"}
+        />
         <Table.Column
           dataIndex="created_at"
           title="Created At"

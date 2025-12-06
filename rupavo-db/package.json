@@ -24,6 +24,9 @@
     "func:deploy:report": "npx supabase functions deploy ai-generate-report --debug",
     "func:deploy:storefront": "npx supabase functions deploy ai-generate-storefront --debug",
     "func:deploy:proxy": "npx supabase functions deploy kolosal-proxy --debug",
+    "func:deploy:payment-create": "npx supabase functions deploy payment-create --debug",
+    "func:deploy:payment-webhook": "npx supabase functions deploy payment-webhook --debug",
+    "func:deploy:payments": "npm run func:deploy:payment-create && npm run func:deploy:payment-webhook",
     "func:serve": "npx supabase functions serve",
     "secrets:list": "npx supabase secrets list",
     "secrets:set": "npx supabase secrets set"

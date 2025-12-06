@@ -46,6 +46,23 @@ import {
   AIReportList,
   AIReportShow,
 } from "./pages/ai-reports";
+import {
+  StorefrontList,
+  StorefrontShow,
+  StorefrontEdit,
+} from "./pages/storefronts";
+import {
+  TransactionList,
+  TransactionShow,
+} from "./pages/transactions";
+import {
+  PayoutList,
+  PayoutShow,
+} from "./pages/payouts";
+import {
+  ShopPaymentSettingsList,
+  ShopPaymentSettingsEdit,
+} from "./pages/shop-payment-settings";
 import { supabaseClient } from "./utility";
 
 function App() {
@@ -105,6 +122,43 @@ function App() {
                       label: "AI Reports",
                     },
                   },
+                  {
+                    name: "storefront_layouts",
+                    list: "/storefronts",
+                    show: "/storefronts/show/:id",
+                    edit: "/storefronts/edit/:id",
+                    meta: {
+                      canDelete: false,
+                      label: "Storefronts",
+                    },
+                  },
+                  {
+                    name: "transactions",
+                    list: "/transactions",
+                    show: "/transactions/show/:id",
+                    meta: {
+                      canDelete: false,
+                      label: "Transactions",
+                    },
+                  },
+                  {
+                    name: "payouts",
+                    list: "/payouts",
+                    show: "/payouts/show/:id",
+                    meta: {
+                      canDelete: false,
+                      label: "Payouts",
+                    },
+                  },
+                  {
+                    name: "shop_payment_settings",
+                    list: "/shop-payment-settings",
+                    edit: "/shop-payment-settings/edit/:id",
+                    meta: {
+                      canDelete: false,
+                      label: "Payment Settings",
+                    },
+                  },
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -154,6 +208,23 @@ function App() {
                     <Route path="/ai-reports">
                       <Route index element={<AIReportList />} />
                       <Route path="show/:id" element={<AIReportShow />} />
+                    </Route>
+                    <Route path="/storefronts">
+                      <Route index element={<StorefrontList />} />
+                      <Route path="show/:id" element={<StorefrontShow />} />
+                      <Route path="edit/:id" element={<StorefrontEdit />} />
+                    </Route>
+                    <Route path="/transactions">
+                      <Route index element={<TransactionList />} />
+                      <Route path="show/:id" element={<TransactionShow />} />
+                    </Route>
+                    <Route path="/payouts">
+                      <Route index element={<PayoutList />} />
+                      <Route path="show/:id" element={<PayoutShow />} />
+                    </Route>
+                    <Route path="/shop-payment-settings">
+                      <Route index element={<ShopPaymentSettingsList />} />
+                      <Route path="edit/:id" element={<ShopPaymentSettingsEdit />} />
                     </Route>
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
