@@ -40,6 +40,10 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _sessionId;
   ProductPreview? _pendingProduct;
   bool _isProcessingAction = false;
+  
+  // Pending transaction drafts from AI
+  Map<String, dynamic>? _pendingDraftSale;
+  Map<String, dynamic>? _pendingDraftExpense;
 
   @override
   void initState() {
@@ -220,6 +224,181 @@ class _ChatScreenState extends State<ChatScreen> {
     await _showProductPreviewDialog(preview);
   }
 
+  /// Handle transaction-related actions from AI
+  Future<void> _handleTransactionActions(ChatResponse response) async {
+    final action = response.action;
+    final data = response.data;
+
+    switch (action) {
+      case 'draft_sale':
+        // Store pending draft for confirmation
+        setState(() {
+          _pendingDraftSale = data;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('💡 Ketik "ya" untuk konfirmasi penjualan'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        break;
+
+      case 'sale_confirmed':
+        // AI confirmed sale - now insert to database
+        if (_pendingDraftSale != null) {
+          await _insertSaleToDatabase(_pendingDraftSale!);
+          setState(() {
+            _pendingDraftSale = null;
+          });
+        }
+        break;
+
+      case 'draft_expense':
+        setState(() {
+          _pendingDraftExpense = data;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('💡 Ketik "ya" untuk konfirmasi pengeluaran'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        break;
+
+      case 'expense_confirmed':
+        if (_pendingDraftExpense != null) {
+          await _insertExpenseToDatabase(_pendingDraftExpense!);
+          setState(() {
+            _pendingDraftExpense = null;
+          });
+        }
+        break;
+
+      case 'transaction_updated':
+      case 'transaction_deleted':
+        // Just show success toast - AI already did the DB update
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(action == 'transaction_updated' 
+                  ? '✅ Transaksi berhasil diupdate' 
+                  : '❌ Transaksi berhasil dihapus'),
+              backgroundColor: action == 'transaction_updated' ? Colors.green : Colors.orange,
+            ),
+          );
+        }
+        break;
+    }
+  }
+
+  Future<void> _insertSaleToDatabase(Map<String, dynamic> saleData) async {
+    try {
+      // Insert order
+      final orderResult = await _supabase.from('orders').insert({
+        'shop_id': widget.shopId,
+        'source': 'manual',
+        'status': 'completed',
+        'total_amount': saleData['amount'] ?? 0,
+        'buyer_name': saleData['customer_name'],
+        'recorded_via': 'asisten',
+      }).select().single();
+
+      // Find or create product if product_name provided
+      final productName = saleData['product_name'];
+      if (productName != null && productName.isNotEmpty) {
+        // Check if product exists
+        final existingProduct = await _supabase
+            .from('products')
+            .select('id, price')
+            .eq('shop_id', widget.shopId)
+            .ilike('name', productName)
+            .maybeSingle();
+
+        String productId;
+        double unitPrice;
+
+        if (existingProduct != null) {
+          productId = existingProduct['id'];
+          unitPrice = (existingProduct['price'] as num).toDouble();
+        } else {
+          // Auto-create product
+          final qty = saleData['quantity'] ?? 1;
+          unitPrice = (saleData['amount'] ?? 0) / qty;
+          final newProduct = await _supabase.from('products').insert({
+            'shop_id': widget.shopId,
+            'name': productName,
+            'price': unitPrice,
+            'description': 'Dibuat otomatis oleh Asisten',
+          }).select().single();
+          productId = newProduct['id'];
+        }
+
+        // Insert order item
+        await _supabase.from('order_items').insert({
+          'order_id': orderResult['id'],
+          'product_id': productId,
+          'quantity': saleData['quantity'] ?? 1,
+          'unit_price': unitPrice,
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Penjualan berhasil dicatat!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error inserting sale: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mencatat penjualan: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _insertExpenseToDatabase(Map<String, dynamic> expenseData) async {
+    try {
+      await _supabase.from('expenses').insert({
+        'shop_id': widget.shopId,
+        'description': expenseData['description'] ?? 'Pengeluaran',
+        'amount': expenseData['amount'] ?? 0,
+        'category': expenseData['category'] ?? 'general',
+        'supplier_name': expenseData['supplier_name'],
+        'recorded_via': 'asisten',
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Pengeluaran berhasil dicatat!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error inserting expense: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mencatat pengeluaran: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   ProductPreview? _extractProductPreview(ChatResponse response) {
     try {
       if (response.action == 'product_suggestion' && response.data != null) {
@@ -393,7 +572,9 @@ class _ChatScreenState extends State<ChatScreen> {
           message: assistantMessage,
         );
 
+        // Handle different action types
         await _handleProductSuggestion(response);
+        await _handleTransactionActions(response);
       } else {
         _addMessage(
           ChatMessage(
@@ -420,7 +601,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rupavo Coach'),
+        title: const Text('Asisten Rupavo'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -513,7 +694,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: TextField(
                     controller: _messageController,
                     decoration: InputDecoration(
-                      hintText: 'Tanya Rupavo...',
+                      hintText: 'Catat transaksi atau tanya sesuatu...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),

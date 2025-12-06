@@ -14,7 +14,7 @@ interface WhatsAppFloatProps {
 }
 
 export function WhatsAppFloat({ section }: WhatsAppFloatProps) {
-    const phone = section.phone_number.replace(/[^0-9]/g, '');
+    const phone = (section.phone_number || '').replace(/[^0-9]/g, '');
     const message = encodeURIComponent(section.message || 'Halo, saya ingin bertanya...');
     const waUrl = `https://wa.me/${phone}?text=${message}`;
     const label = section.label || 'Chat WhatsApp';

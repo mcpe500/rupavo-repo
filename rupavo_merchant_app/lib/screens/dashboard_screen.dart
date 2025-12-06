@@ -61,7 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           NavigationDestination(
             icon: Icon(Icons.chat_bubble_outline),
             selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Coach',
+            label: 'Asisten',
           ),
         ],
       ),

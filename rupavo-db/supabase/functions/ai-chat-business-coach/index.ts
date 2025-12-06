@@ -24,7 +24,9 @@ interface ChatResponse {
     reply?: string;
     session_id?: string;
     error?: string;
-    action?: 'shop_created' | 'product_added' | 'product_suggestion' | null;
+    action?: 'shop_created' | 'product_added' | 'product_suggestion'
+    | 'draft_sale' | 'sale_confirmed' | 'draft_expense' | 'expense_confirmed'
+    | 'transaction_updated' | 'transaction_deleted' | null;
     data?: any;
 }
 
@@ -146,35 +148,56 @@ Deno.serve(async (req: Request) => {
         }
 
         // 7. Build prompt for Kolosal AI
-        const systemPrompt = `Kamu adalah Rupavo, partner bisnis UMKM yang ramah dan helpful.
+        const systemPrompt = `Kamu adalah Asisten Rupavo, partner bisnis UMKM yang ramah dan helpful.
 
 TUGAS UTAMA:
-Membantu user membuat toko dan menambahkan produk melalui percakapan.
+1. Membantu user membuat toko dan menambahkan produk
+2. Mencatat transaksi penjualan dan pengeluaran (cashflow tracking)
+3. Koreksi atau hapus transaksi yang salah
 
-TOOLS (WAJIB Gunakan Format JSON):
-1. Jika user ingin membuka toko dan sudah memberikan detail (Nama, Deskripsi), WAJIB output JSON ini:
-{ "tool": "create_shop", "args": { "name": "Nama Toko", "description": "Deskripsi singkat", "business_type": "FNB/Retail/Jasa" } }
+=== TOOLS (WAJIB Format JSON) ===
 
-2. Jika user ingin menambah produk (HANYA jika toko sudah ada), WAJIB output JSON ini:
-{ "tool": "add_product", "args": { "name": "Nama Produk", "price": 10000, "description": "Deskripsi produk" } }
+1. BUAT TOKO (onboarding):
+{ "tool": "create_shop", "args": { "name": "Nama Toko", "description": "Deskripsi", "business_type": "FNB/Retail/Jasa" } }
 
-PENTING: Ketika user minta tambah produk, JANGAN cuma bilang "sudah ditambahkan". WAJIB output JSON tool call di atas!
+2. DRAFT PRODUK BARU:
+{ "tool": "add_product", "args": { "name": "Nama Produk", "price": 10000, "description": "Deskripsi" } }
 
-Profil Toko Saat Ini:
+3. DRAFT PENJUALAN (user bilang "ada yang beli X" - MINTA KONFIRMASI DULU):
+{ "tool": "draft_sale", "args": { "product_name": "Kopi Arabica", "quantity": 2, "amount": 30000, "customer_name": "Pak Budi (opsional)" } }
+→ Setelah output ini, TANYAKAN "Mau dicatat? Ketik 'ya' atau koreksi dulu."
+
+4. KONFIRMASI PENJUALAN (user bilang "ya/oke/lanjut"):
+{ "tool": "confirm_sale" }
+
+5. DRAFT PENGELUARAN (user bilang "beli bahan X"):
+{ "tool": "draft_expense", "args": { "description": "Beli gula 5kg", "amount": 75000, "category": "bahan_baku", "supplier_name": "Toko ABC" } }
+→ Categories: bahan_baku, operasional, gaji, utilitas, marketing, general
+
+6. KONFIRMASI PENGELUARAN (user bilang "ya/oke"):
+{ "tool": "confirm_expense" }
+
+7. UPDATE TRANSAKSI (user bilang "koreksi/ubah transaksi X"):
+{ "tool": "update_transaction", "args": { "description_match": "kopi", "new_amount": 25000, "new_quantity": 3 } }
+
+8. HAPUS TRANSAKSI (user bilang "batalkan/hapus transaksi X"):
+{ "tool": "delete_transaction", "args": { "description_match": "kopi" } }
+
+=== PENTING ===
+- Untuk SETIAP penjualan/pengeluaran, BUAT DRAFT dulu, TANYA konfirmasi
+- Jika user bilang "ya/oke", baru panggil confirm
+- Jika user mau koreksi SEBELUM confirm, buat draft baru dengan data yang diubah
+- Gunakan bahasa Indonesia santai
+
+=== KONTEKS TOKO ===
 - ID: ${shop.id}
 - Nama: ${shop.name}
-- Jenis Usaha: ${shop.business_type || "Tidak diketahui"}
-- Deskripsi: ${shop.description || "Belum ada deskripsi"}
+- Jenis: ${shop.business_type || "Umum"}
+- Deskripsi: ${shop.description || "Belum ada"}
 
-Konteks Bisnis:
-- Total penjualan 10 transaksi terakhir: Rp ${totalSales.toLocaleString("id-ID")}
-- Pesanan selesai: ${completedOrders} dari ${recentOrdersCount}
-
-Panduan:
-1. Jika masih tahap onboarding (ID: onboarding), fokus gali informasi untuk membuat toko.
-2. Jika user memberikan info lengkap (Nama, Deskripsi), LANGSUNG panggil tool create_shop.
-3. Jika user minta tambah produk, LANGSUNG panggil tool add_product dengan JSON.
-4. Gunakan bahasa Indonesia yang santai.`;
+Statistik:
+- Penjualan 10 terakhir: Rp ${totalSales.toLocaleString("id-ID")}
+- Pesanan selesai: ${completedOrders}/${recentOrdersCount}`;
 
         // 7.5 Fetch conversation history (for context continuity)
         let conversationHistory: any[] = [];
@@ -317,6 +340,122 @@ Panduan:
 
                     reply = `Aku sudah siapkan draft produk **${productName}** dengan harga Rp ${productPrice}.`
                         + ` Cek dulu detailnya, dan tekan tombol konfirmasi kalau sudah pas ya. 😊`;
+
+                    // ========== TRANSACTION TOOLS ==========
+
+                } else if (toolCall.tool === 'draft_sale' && !isOnboarding) {
+                    console.log("✨ DRAFT SALE:", toolCall.args);
+
+                    action = 'draft_sale';
+                    actionData = {
+                        ...toolCall.args,
+                        shop_id: shop.id,
+                    };
+
+                    const productName = toolCall.args.product_name || 'Produk';
+                    const qty = toolCall.args.quantity || 1;
+                    const amount = Number(toolCall.args.amount ?? 0).toLocaleString('id-ID');
+
+                    reply = `Mau catat penjualan ini? 📝\n• ${productName} x${qty}\n• Total: Rp ${amount}\n\nKetik 'ya' kalau sudah benar, atau bilang kalau ada yang perlu diubah.`;
+
+                } else if (toolCall.tool === 'confirm_sale' && !isOnboarding) {
+                    console.log("✨ CONFIRM SALE - looking for pending draft");
+
+                    // Get recent draft from conversation to find pending sale
+                    const { data: recentMessages } = await supabase
+                        .from('ai_conversations')
+                        .select('content')
+                        .eq('shop_id', shop.id)
+                        .eq('role', 'assistant')
+                        .order('created_at', { ascending: false })
+                        .limit(3);
+
+                    // Parse the last draft_sale from context
+                    // For now, we'll rely on client to send the draft data
+                    action = 'sale_confirmed';
+                    actionData = { shop_id: shop.id };
+                    reply = "✅ Penjualan berhasil dicatat!";
+
+                } else if (toolCall.tool === 'draft_expense' && !isOnboarding) {
+                    console.log("✨ DRAFT EXPENSE:", toolCall.args);
+
+                    action = 'draft_expense';
+                    actionData = {
+                        ...toolCall.args,
+                        shop_id: shop.id,
+                    };
+
+                    const desc = toolCall.args.description || 'Pengeluaran';
+                    const amount = Number(toolCall.args.amount ?? 0).toLocaleString('id-ID');
+                    const category = toolCall.args.category || 'general';
+
+                    reply = `Mau catat pengeluaran ini? 💸\n• ${desc}\n• Jumlah: Rp ${amount}\n• Kategori: ${category}\n\nKetik 'ya' untuk konfirmasi.`;
+
+                } else if (toolCall.tool === 'confirm_expense' && !isOnboarding) {
+                    console.log("✨ CONFIRM EXPENSE");
+
+                    action = 'expense_confirmed';
+                    actionData = { shop_id: shop.id };
+                    reply = "✅ Pengeluaran berhasil dicatat!";
+
+                } else if (toolCall.tool === 'update_transaction' && !isOnboarding) {
+                    console.log("✨ UPDATE TRANSACTION:", toolCall.args);
+
+                    const match = toolCall.args.description_match || '';
+                    const newAmount = toolCall.args.new_amount;
+
+                    // Find recent matching transaction
+                    const { data: matchingOrders } = await supabase
+                        .from('orders')
+                        .select('id, total_amount, buyer_name')
+                        .eq('shop_id', shop.id)
+                        .is('deleted_at', null)
+                        .order('created_at', { ascending: false })
+                        .limit(10);
+
+                    // For now, update the most recent order
+                    if (matchingOrders && matchingOrders.length > 0) {
+                        const targetOrder = matchingOrders[0];
+                        const oldAmount = targetOrder.total_amount;
+
+                        await supabase
+                            .from('orders')
+                            .update({ total_amount: newAmount })
+                            .eq('id', targetOrder.id);
+
+                        action = 'transaction_updated';
+                        actionData = { order_id: targetOrder.id, old_amount: oldAmount, new_amount: newAmount };
+                        reply = `✅ Transaksi diupdate!\n• Sebelum: Rp ${Number(oldAmount).toLocaleString('id-ID')}\n• Sesudah: Rp ${Number(newAmount).toLocaleString('id-ID')}`;
+                    } else {
+                        reply = "Hmm, aku tidak menemukan transaksi yang cocok. Coba sebutkan lebih spesifik ya.";
+                    }
+
+                } else if (toolCall.tool === 'delete_transaction' && !isOnboarding) {
+                    console.log("✨ DELETE TRANSACTION:", toolCall.args);
+
+                    // Find and soft-delete most recent matching transaction
+                    const { data: matchingOrders } = await supabase
+                        .from('orders')
+                        .select('id, total_amount, buyer_name')
+                        .eq('shop_id', shop.id)
+                        .is('deleted_at', null)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+
+                    if (matchingOrders && matchingOrders.length > 0) {
+                        const targetOrder = matchingOrders[0];
+
+                        await supabase
+                            .from('orders')
+                            .update({ deleted_at: new Date().toISOString() })
+                            .eq('id', targetOrder.id);
+
+                        action = 'transaction_deleted';
+                        actionData = { order_id: targetOrder.id };
+                        reply = `❌ Transaksi (Rp ${Number(targetOrder.total_amount).toLocaleString('id-ID')}) sudah dihapus.`;
+                    } else {
+                        reply = "Tidak ada transaksi yang bisa dihapus.";
+                    }
                 }
             }
         } catch (e) {

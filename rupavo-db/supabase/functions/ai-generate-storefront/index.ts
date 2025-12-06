@@ -8,7 +8,115 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const KOLOSAL_API_URL = 'https://api.kolosal.ai/v1/chat/completions'
 const KOLOSAL_MODEL = 'Qwen 3 30BA3B'
 
-const SYSTEM_PROMPT = `Kamu adalah **"Etalase Toko Online Indonesia"**, asisten AI yang tugasnya merancang tampilan halaman toko online untuk pemilik usaha kecil, UMKM, dan pelaku bisnis Indonesia.
+// 🛡️ SANITIZATION: Bersihkan user prompt dari injection attempts
+function sanitizeUserPrompt(prompt: string): string {
+  if (!prompt) return ''
+  
+  // Hapus instruksi yang mencoba override system prompt
+  const dangerousPatterns = [
+    /ignore (previous|above|all) (instructions?|prompts?|rules?)/gi,
+    /forget (everything|all|previous)/gi,
+    /you are now/gi,
+    /new (instructions?|rules?|role)/gi,
+    /disregard (previous|above)/gi,
+    /system prompt/gi,
+    /\[SYSTEM\]/gi,
+    /\[INST\]/gi,
+    /<\|system\|>/gi,
+  ]
+  
+  let cleaned = prompt
+  dangerousPatterns.forEach(pattern => {
+    cleaned = cleaned.replace(pattern, '')
+  })
+  
+  // Batasi panjang untuk mencegah prompt bombing
+  return cleaned.slice(0, 500).trim()
+}
+
+// 🛡️ VALIDATION: Validasi output AI tidak mengandung hal berbahaya
+function validateStorefrontOutput(design: any, products: any[]): { valid: boolean; errors: string[] } {
+  const errors: string[] = []
+  
+  // Validasi struktur dasar
+  if (!design.theme || !design.hero || !design.sections) {
+    errors.push('Output tidak memiliki struktur yang valid')
+    return { valid: false, errors }
+  }
+  
+  // Validasi tidak ada section berbahaya tanpa data
+  const bannedSectionsWithoutData = [
+    'banner_promo',
+    'banner_countdown', 
+    'testimonial_carousel',
+    'testimonial_grid',
+    'social_proof',
+    'bundle_showcase',
+    'pricing_table',
+  ]
+  
+  if (design.sections) {
+    design.sections.forEach((section: any, idx: number) => {
+      if (bannedSectionsWithoutData.includes(section.type)) {
+        errors.push(`Section ${section.type} tidak diperbolehkan karena bisa mengandung data palsu`)
+      }
+      
+      // Validasi konten section tidak mengandung kata-kata promo palsu
+      const sectionText = JSON.stringify(section).toLowerCase()
+      const promoKeywords = ['diskon', 'discount', 'promo', 'sale', 'gratis ongkir', 'free shipping', 'flash sale', 'terjual', 'sold', 'review', 'rating bintang', '⭐', 'testimoni']
+      
+      promoKeywords.forEach(keyword => {
+        if (sectionText.includes(keyword)) {
+          errors.push(`Section #${idx} mengandung kata '${keyword}' yang tidak diverifikasi`)
+        }
+      })
+    })
+  }
+  
+  // Validasi hero tidak mengandung klaim palsu
+  const heroText = JSON.stringify(design.hero).toLowerCase()
+  const fakeClaimKeywords = ['diskon', 'promo', 'gratis', 'free', 'terjual', 'terpercaya', 'terbaik', 'no 1', '#1', '100%', '1000+', 'ribuan', 'jutaan']
+  
+  fakeClaimKeywords.forEach(keyword => {
+    if (heroText.includes(keyword)) {
+      errors.push(`Hero mengandung klaim '${keyword}' yang tidak terverifikasi`)
+    }
+  })
+  
+  // Validasi wajib ada section produk
+  const hasProductSection = design.sections?.some((s: any) => 
+    ['product_grid', 'product_carousel', 'product_featured'].includes(s.type)
+  )
+  
+  if (!hasProductSection) {
+    errors.push('Storefront harus memiliki minimal 1 section produk')
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors
+  }
+}
+
+const SYSTEM_PROMPT = `Kamu adalah asisten desain etalase toko online. Tugasmu adalah membuat layout storefront yang FAKTUAL dan JUJUR berdasarkan data yang diberikan.
+
+🚨 ATURAN MUTLAK - DILARANG KERAS:
+1. JANGAN buat atau sebutkan diskon, promo, sale yang tidak ada di data
+2. JANGAN buat angka statistik palsu (seperti "Terjual 1000+", "1000+ pelanggan puas")
+3. JANGAN buat testimoni atau review palsu
+4. JANGAN tambahkan badge "Terlaris", "Best Seller", "Terpercaya" tanpa data
+5. JANGAN klaim "Gratis Ongkir", "Free Shipping" tanpa konfirmasi
+6. JANGAN gunakan kata-kata seperti: "Diskon", "Promo", "Sale", "Terjual", "Review", "Rating" 
+7. JANGAN buat data produk fiktif atau ubah harga produk
+8. HANYA gunakan informasi yang BENAR-BENAR ADA di data yang diberikan
+
+✅ YANG BOLEH DILAKUKAN:
+1. Menulis headline yang menarik TAPI FAKTUAL (contoh: "Kopi Arabica Premium" bukan "Kopi Terlaris 1000+ Terjual")
+2. Mendeskripsikan produk berdasarkan data products.description
+3. Menggunakan informasi dari shop.description dan shop.tagline
+4. Membuat section "about_us" berdasarkan shop.description
+5. Membuat section "product_grid" atau "product_carousel" dengan data produk asli
+6. Menggunakan warna dan layout yang menarik
 
 �🇩 KONTEKS INDONESIA
 - Target audiens: konsumen Indonesia dari berbagai latar belakang
@@ -199,7 +307,7 @@ FLOATING ELEMENTS:
 1. VARIASI: Jangan selalu pakai kombinasi yang sama. Variasikan hero layout, section urutan, dan visual style.
 2. RELEVANSI: Pilih section yang relevan dengan jenis usaha. Toko kopi tidak perlu recipe_cards tentang sayur.
 3. STORYTELLING: Untuk UMKM yang punya cerita, gunakan story_timeline atau about_us yang engaging.
-4. MOBILE-FIRST: Pikirkan tampilan di HP karena mayoritas pengguna Indonesia akses via mobile.
+4. MOBILE-and-DESKTOP-FRIENDLY: Pikirkan tampilan di HP karena mayoritas pengguna Indonesia akses via mobile.
 5. LOKAL: Gunakan referensi lokal Indonesia yang inklusif (bukan hanya Jakarta/Jawa).
 6. COPY: Tulis headline yang catchy tapi tidak lebay. Hangat tapi tidak murahan.
 
@@ -207,7 +315,18 @@ FLOATING ELEMENTS:
 - Output harus HANYA JSON valid, tidak ada teks lain di luar JSON
 - Pilih 5-12 sections yang paling relevan, JANGAN semua
 - Sesuaikan warna dengan jenis usaha
-- Gunakan Bahasa Indonesia yang natural dan inklusif`
+- Gunakan Bahasa Indonesia yang natural dan inklusif
+
+🎯 PRINSIP UTAMA:
+- KEJUJURAN > Kreativitas
+- DATA FAKTUAL > Copy yang menarik tapi bohong
+- SEDERHANA tapi JUJUR > Kompleks tapi menyesatkan
+
+⚠️ OUTPUT:
+- Hanya JSON valid, tidak ada teks lain
+- Maksimal 5 sections
+- Semua konten harus FAKTUAL dan bisa diverifikasi dari data
+- JANGAN menggunakan emoji rating (⭐), angka review, atau statistik penjualan`
 
 
 interface StorefrontRequest {
@@ -232,6 +351,9 @@ serve(async (req) => {
       )
     }
 
+    // 🛡️ Sanitasi user input
+    const cleanedPrompt = sanitizeUserPrompt(user_prompt || '')
+
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -249,7 +371,7 @@ serve(async (req) => {
       )
     }
 
-    // Fetch active products with images
+    // Fetch active products
     const { data: products, error: productsError } = await supabase
       .from('products')
       .select('id, name, description, price, image_url, is_active')
@@ -261,6 +383,7 @@ serve(async (req) => {
     if (productsError) {
       console.error('Error fetching products:', productsError)
     }
+
 
     // Fetch recent chat history for context
     const { data: chatHistory } = await supabase
@@ -317,7 +440,7 @@ Buatkan desain etalase toko online dalam format JSON sesuai spesifikasi.`
             content: userMessage
           }
         ],
-        temperature: 0.8
+        temperature: 0.9,
       })
     })
 
@@ -328,29 +451,34 @@ Buatkan desain etalase toko online dalam format JSON sesuai spesifikasi.`
     }
 
     const kolosalData = await kolosalResponse.json()
-    console.log('Kolosal API response received')
-
-    // Extract response from OpenAI-compatible format
     const assistantMessage = kolosalData.choices?.[0]?.message?.content || ''
 
-    // Parse JSON from AI response
+    // Parse JSON
     let storefrontDesign
     try {
-      // Extract JSON from markdown code blocks if present
       const jsonMatch = assistantMessage.match(/```json\n([\s\S]*?)\n```/) ||
         assistantMessage.match(/```\n([\s\S]*?)\n```/)
-
       const jsonText = jsonMatch ? jsonMatch[1] : assistantMessage
       storefrontDesign = JSON.parse(jsonText.trim())
     } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', assistantMessage)
+      console.error('Failed to parse AI response:', assistantMessage)
       throw new Error('AI generated invalid JSON format')
     }
 
-    // Extract theme and layout separately
+    // 🛡️ VALIDASI OUTPUT
+    const validation = validateStorefrontOutput(storefrontDesign, products || [])
+    if (!validation.valid) {
+      console.error('Validation failed:', validation.errors)
+      
+      // Fallback ke design minimal yang aman
+      storefrontDesign = createSafeStorefront(shop, products || [])
+      console.log('Using safe fallback storefront')
+    }
+
+    // Extract theme and layout
     const { theme, ...layout } = storefrontDesign
 
-    // Get existing layout to increment version
+    // Get existing layout version
     const { data: existingLayout } = await supabase
       .from('storefront_layouts')
       .select('version')
@@ -367,14 +495,15 @@ Buatkan desain etalase toko online dalam format JSON sesuai spesifikasi.`
         theme: theme,
         layout: layout,
         version: newVersion,
-        design_prompt: user_prompt || null,
+        design_prompt: cleanedPrompt || null,
         is_active: true,
         meta: {
           model: KOLOSAL_MODEL,
-          temperature: 0.8,
+          temperature: 0.3,
           generated_at: new Date().toISOString(),
           product_count: products?.length || 0,
-          has_chat_context: !!chatHistory?.length
+          validation_passed: validation.valid,
+          validation_errors: validation.errors
         }
       }, {
         onConflict: 'shop_id'
@@ -392,7 +521,10 @@ Buatkan desain etalase toko online dalam format JSON sesuai spesifikasi.`
         success: true,
         layout: savedLayout,
         design: storefrontDesign,
-        message: 'Etalase toko berhasil dibuat!'
+        validation: validation,
+        message: validation.valid 
+          ? 'Etalase toko berhasil dibuat!' 
+          : 'Etalase dibuat dengan mode aman karena output AI tidak valid'
       }),
       { headers: corsHeaders() }
     )
@@ -408,6 +540,50 @@ Buatkan desain etalase toko online dalam format JSON sesuai spesifikasi.`
     )
   }
 })
+
+// 🛡️ SAFE FALLBACK: Buat storefront aman kalau AI gagal validasi
+function createSafeStorefront(shop: any, products: any[]) {
+  return {
+    theme: {
+      mode: 'light',
+      color_palette: 'fresh-green',
+      primary_color: '#10B981',
+      secondary_color: '#059669',
+      accent_color: '#FCD34D',
+      background_color: '#FFFFFF',
+      text_primary: '#1F2937',
+      text_secondary: '#6B7280'
+    },
+    hero: {
+      layout: 'centered',
+      title: shop.name || 'Selamat Datang',
+      subtitle: shop.tagline || shop.description || 'Toko online kami',
+      call_to_action_label: 'Lihat Produk',
+      call_to_action_url: '#products'
+    },
+    sections: [
+      {
+        type: 'product_grid',
+        title: 'Produk Kami',
+        columns: 3,
+        products: products.slice(0, 6).map(p => p.id)
+      },
+      {
+        type: 'about_us',
+        title: 'Tentang Kami',
+        content: shop.description || 'Terima kasih telah mengunjungi toko kami.'
+      },
+      {
+        type: 'whatsapp_float',
+        phone: shop.phone_number || ''
+      }
+    ],
+    footer: {
+      style: 'minimal',
+      copyright_text: `© 2024 ${shop.name || 'Toko Kami'}`
+    }
+  }
+}
 
 function corsHeaders() {
   return {
