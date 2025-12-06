@@ -1,0 +1,89 @@
+import {
+  DateField,
+  DeleteButton,
+  EditButton,
+  List,
+  NumberField,
+  ShowButton,
+  TagField,
+  useTable,
+} from "@refinedev/antd";
+import { type BaseRecord, useMany } from "@refinedev/core";
+import { Space, Table } from "antd";
+
+export const ProductList = () => {
+  const { result, tableProps } = useTable({
+    syncWithLocation: true,
+    meta: {
+      select: "*, shops(id,name)",
+    },
+  });
+
+  const {
+    result: { data: shops },
+    query: { isLoading: shopsIsLoading },
+  } = useMany({
+    resource: "shops",
+    ids:
+      result?.data?.map((item) => item?.shop_id).filter(Boolean) ?? [],
+    queryOptions: {
+      enabled: !!result?.data,
+    },
+  });
+
+  return (
+    <List>
+      <Table {...tableProps} rowKey="id">
+        <Table.Column dataIndex="id" title="ID" width={80} />
+        <Table.Column dataIndex="name" title="Product Name" />
+        <Table.Column
+          dataIndex="shop_id"
+          title="Shop"
+          render={(value) =>
+            shopsIsLoading ? (
+              <>Loading...</>
+            ) : (
+              shops?.find((item) => item.id === value)?.name
+            )
+          }
+        />
+        <Table.Column
+          dataIndex="price"
+          title="Price"
+          render={(value: number) => (
+            <NumberField
+              value={value}
+              options={{
+                style: "currency",
+                currency: "IDR",
+              }}
+            />
+          )}
+        />
+        <Table.Column
+          dataIndex="is_active"
+          title="Active"
+          render={(value: boolean) => (
+            <TagField color={value ? "green" : "red"} value={value ? "Yes" : "No"} />
+          )}
+        />
+        <Table.Column
+          dataIndex="created_at"
+          title="Created At"
+          render={(value: any) => <DateField value={value} format="LLL" />}
+        />
+        <Table.Column
+          title="Actions"
+          dataIndex="actions"
+          render={(_, record: BaseRecord) => (
+            <Space>
+              <EditButton hideText size="small" recordItemId={record.id} />
+              <ShowButton hideText size="small" recordItemId={record.id} />
+              <DeleteButton hideText size="small" recordItemId={record.id} />
+            </Space>
+          )}
+        />
+      </Table>
+    </List>
+  );
+};

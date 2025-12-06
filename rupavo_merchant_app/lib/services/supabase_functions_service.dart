@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'logger_service.dart';
 
 /// Service for calling Supabase Edge Functions
 class SupabaseFunctionsService {
@@ -14,20 +15,33 @@ class SupabaseFunctionsService {
     required String message,
     String? sessionId,
   }) async {
-    final response = await _supabase.functions.invoke(
-      'ai-chat-business-coach',
-      body: {
-        'shop_id': shopId,
-        'message': message,
-        if (sessionId != null) 'session_id': sessionId,
-      },
-    );
+    LoggerService.info('🤖 AI Chat Request: shopId=$shopId, sessionId=$sessionId');
+    LoggerService.debug('Message: $message');
 
-    if (response.status != 200) {
-      throw Exception(response.data?['error'] ?? 'Failed to chat with Rupavo');
+    try {
+      final response = await _supabase.functions.invoke(
+        'ai-chat-business-coach',
+        body: {
+          'shop_id': shopId,
+          'message': message,
+          if (sessionId != null) 'session_id': sessionId,
+        },
+      );
+
+      LoggerService.info('🤖 AI Chat Response Status: ${response.status}');
+
+      if (response.status != 200) {
+        throw Exception(response.data?['error'] ?? 'Failed to chat with Rupavo');
+      }
+      
+      final data = response.data as Map<String, dynamic>;
+      // LoggerService.debug('Response Data: $data'); // Optional: verbose
+      return ChatResponse.fromJson(data);
+    
+    } catch (e, stack) {
+      LoggerService.error('❌ AI Chat failed', e, stack);
+      rethrow;
     }
-
-    return ChatResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
   // ===========================================================================
@@ -42,22 +56,31 @@ class SupabaseFunctionsService {
     String? category,
     double? price,
   }) async {
-    final response = await _supabase.functions.invoke(
-      'ai-generate-product-copy',
-      body: {
-        'shop_id': shopId,
-        'base_name': baseName,
-        if (baseDescription != null) 'base_description': baseDescription,
-        if (category != null) 'category': category,
-        if (price != null) 'price': price,
-      },
-    );
+    LoggerService.info('🛍️ Generating Copy: $baseName (Shop: $shopId)');
 
-    if (response.status != 200) {
-      throw Exception(response.data?['error'] ?? 'Failed to generate product copy');
+    try {
+      final response = await _supabase.functions.invoke(
+        'ai-generate-product-copy',
+        body: {
+          'shop_id': shopId,
+          'base_name': baseName,
+          if (baseDescription != null) 'base_description': baseDescription,
+          if (category != null) 'category': category,
+          if (price != null) 'price': price,
+        },
+      );
+
+      LoggerService.info('🛍️ Copy Generation Status: ${response.status}');
+
+      if (response.status != 200) {
+        throw Exception(response.data?['error'] ?? 'Failed to generate product copy');
+      }
+
+      return ProductCopyResponse.fromJson(response.data as Map<String, dynamic>);
+    } catch (e, stack) {
+      LoggerService.error('❌ Copy generation failed', e, stack);
+      rethrow;
     }
-
-    return ProductCopyResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
   // ===========================================================================
@@ -71,21 +94,30 @@ class SupabaseFunctionsService {
     String? startDate,
     String? endDate,
   }) async {
-    final response = await _supabase.functions.invoke(
-      'ai-generate-report',
-      body: {
-        'shop_id': shopId,
-        'period': period.name,
-        if (startDate != null) 'start_date': startDate,
-        if (endDate != null) 'end_date': endDate,
-      },
-    );
+    LoggerService.info('📊 Generating Report: $period (Shop: $shopId)');
 
-    if (response.status != 200) {
-      throw Exception(response.data?['error'] ?? 'Failed to generate report');
+    try {
+      final response = await _supabase.functions.invoke(
+        'ai-generate-report',
+        body: {
+          'shop_id': shopId,
+          'period': period.name,
+          if (startDate != null) 'start_date': startDate,
+          if (endDate != null) 'end_date': endDate,
+        },
+      );
+
+      LoggerService.info('📊 Report Generation Status: ${response.status}');
+
+      if (response.status != 200) {
+        throw Exception(response.data?['error'] ?? 'Failed to generate report');
+      }
+
+      return ReportResponse.fromJson(response.data as Map<String, dynamic>);
+    } catch (e, stack) {
+      LoggerService.error('❌ Report generation failed', e, stack);
+      rethrow;
     }
-
-    return ReportResponse.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
