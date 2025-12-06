@@ -14,23 +14,24 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final SupabaseFunctionsService _functionsService = SupabaseFunctionsService();
   final ShopService _shopService = ShopService();
-
+  
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
-  String? _sessionId;
+
+  OnboardingStep _step = OnboardingStep.initial;
+  String? _shopName;
+  String? _shopDesc;
 
   @override
   void initState() {
     super.initState();
-    // Initial greeting
     _addMessage(
       ChatMessage(
         role: ChatRole.assistant,
         content: 'Halo! Saya Rupavo, asisten bisnis Anda. \n\n'
-            'Mari kita mulai perjalanan bisnis Anda. Ceritakan tentang ide toko Anda, '
-            'dan saya akan membantu Anda menyiapkan nama dan deskripsi yang menarik.',
+            'Mari kita mulai perjalanan bisnis Anda. Ceritakan ide toko Anda, '
+            'atau ketik "mulai" untuk langsung membuat toko.',
       ),
     );
   }
@@ -39,7 +40,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() {
       _messages.add(message);
     });
-    // Scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -58,68 +58,86 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _messageController.clear();
     _addMessage(ChatMessage(role: ChatRole.user, content: text));
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // We use a dummy shop ID for onboarding chat since shop doesn't exist yet
-      // In a real app, we might handle this differently or have a dedicated "onboarding" function
-      // For now, we'll assume the function handles "new_shop" or similar, 
-      // OR we just skip the shop_id check in the edge function if it's a specific onboarding intent.
-      // However, our current Edge Function requires shop_id.
-      // WORKAROUND: For this MVP, we will simulate the AI response locally for the first step
-      // or we need to modify the Edge Function to allow no shop_id.
-      
-      // Let's modify the Edge Function later. For now, let's simulate a helpful response
-      // to guide the user to the "Create Shop" form.
-      
-      // Simulating AI delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      _addMessage(
-        ChatMessage(
+      // Conversational State Machine
+      if (_step == OnboardingStep.initial) {
+        await Future.delayed(const Duration(milliseconds: 800));
+        _addMessage(ChatMessage(
           role: ChatRole.assistant,
-          content: 'Ide yang bagus! Bagaimana kalau kita buatkan toko untuk itu? \n\n'
-              'Silakan tekan tombol "Buat Toko" di bawah ini jika Anda sudah siap.',
-        ),
-      );
+          content: 'Ide yang menarik! Mari kita wujudkan.\n\nApa nama toko yang Anda inginkan?',
+        ));
+        _step = OnboardingStep.askingName;
+      } else if (_step == OnboardingStep.askingName) {
+         _shopName = text;
+         await Future.delayed(const Duration(milliseconds: 600));
+         _addMessage(ChatMessage(
+          role: ChatRole.assistant,
+          content: 'Nama yang bagus "$_shopName".\n\nBerikan deskripsi singkat tentang toko Anda.',
+        ));
+        _step = OnboardingStep.askingDescription;
+      } else if (_step == OnboardingStep.askingDescription) {
+        _shopDesc = text;
+        _addMessage(ChatMessage(
+          role: ChatRole.assistant,
+          content: 'Baik, sedang menyiapkan toko "$_shopName" untuk Anda...',
+        ));
+        
+        await _createShop();
+      }
 
     } catch (e) {
-      _addMessage(
-        ChatMessage(
-          role: ChatRole.assistant,
-          content: 'Maaf, terjadi kesalahan. Silakan coba lagi.',
-        ),
-      );
+      _addMessage(ChatMessage(role: ChatRole.assistant, content: 'Error: $e'));
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
-  void _showCreateShopDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: const CreateShopForm(),
-      ),
-    );
+  Future<void> _createShop() async {
+    try {
+       final slug = _shopName!.toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]'), '-')
+          .replaceAll(RegExp(r'-+'), '-')
+          .replaceAll(RegExp(r'^-|-$'), '');
+      
+      // Check availability (simplified)
+      final isAvailable = await _shopService.isSlugAvailable(slug);
+      final finalSlug = isAvailable ? slug : '$slug-${DateTime.now().millisecondsSinceEpoch}';
+
+      await _shopService.createShop(
+        name: _shopName!,
+        slug: finalSlug,
+        description: _shopDesc ?? '',
+        businessType: 'general',
+      );
+      
+      _addMessage(ChatMessage(
+        role: ChatRole.assistant,
+        content: 'Toko berhasil dibuat! Mengalihkan ke Dashboard...',
+      ));
+      
+      await Future.delayed(const Duration(seconds: 1));
+      
+      if (mounted) {
+         Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const AuthGate()),
+        );
+      }
+    } catch (e) {
+       _addMessage(ChatMessage(
+        role: ChatRole.assistant,
+        content: 'Gagal membuat toko: $e. Silakan coba nama lain.',
+      ));
+      _step = OnboardingStep.askingName; // Reset to name
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Selamat Datang di Rupavo'),
+        title: const Text('Rupavo Coach'),
         centerTitle: true,
       ),
       body: Column(
@@ -139,8 +157,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isUser
-                          ? AppTheme.lightPrimary
-                          : Colors.grey[200],
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.surfaceContainerHighest ?? Colors.grey[200],
                       borderRadius: BorderRadius.circular(16).copyWith(
                         bottomRight: isUser ? Radius.zero : null,
                         bottomLeft: !isUser ? Radius.zero : null,
@@ -152,7 +170,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Text(
                       msg.content,
                       style: TextStyle(
-                        color: isUser ? Colors.white : Colors.black87,
+                        color: isUser ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -173,7 +191,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: TextField(
                     controller: _messageController,
                     decoration: InputDecoration(
-                      hintText: 'Tulis pesan...',
+                      hintText: _step == OnboardingStep.askingName ? 'Nama Toko...' : 'Tulis pesan...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -183,24 +201,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                     onSubmitted: (_) => _sendMessage(),
+                    enabled: !_isLoading,
+                    textInputAction: TextInputAction.send,
                   ),
                 ),
                 const SizedBox(width: 8),
                 IconButton.filled(
-                  onPressed: _sendMessage,
+                  onPressed: _isLoading ? null : _sendMessage,
                   icon: const Icon(Icons.send),
                 ),
               ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _showCreateShopDialog,
-                child: const Text('Buat Toko Sekarang'),
-              ),
             ),
           ),
         ],
@@ -209,121 +219,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-class CreateShopForm extends StatefulWidget {
-  const CreateShopForm({super.key});
-
-  @override
-  State<CreateShopForm> createState() => _CreateShopFormState();
-}
-
-class _CreateShopFormState extends State<CreateShopForm> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _slugController = TextEditingController();
-  final _descController = TextEditingController();
-  final _shopService = ShopService();
-  bool _isLoading = false;
-
-  Future<void> _createShop() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Check slug availability
-      final isAvailable = await _shopService.isSlugAvailable(_slugController.text);
-      if (!isAvailable) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Slug URL sudah digunakan, pilih yang lain.')),
-          );
-        }
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      await _shopService.createShop(
-        name: _nameController.text,
-        slug: _slugController.text,
-        description: _descController.text,
-        businessType: 'general', // Default for now
-      );
-
-      if (mounted) {
-        Navigator.pop(context); // Close sheet
-        // Navigate to Dashboard
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AuthGate()),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal membuat toko: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Buat Toko Baru',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 24),
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Nama Toko'),
-              validator: (v) => v?.isEmpty == true ? 'Wajib diisi' : null,
-              onChanged: (val) {
-                // Auto-generate slug
-                _slugController.text = val
-                    .toLowerCase()
-                    .replaceAll(RegExp(r'[^a-z0-9]'), '-')
-                    .replaceAll(RegExp(r'-+'), '-')
-                    .replaceAll(RegExp(r'^-|-$'), '');
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _slugController,
-              decoration: const InputDecoration(
-                labelText: 'URL Slug',
-                prefixText: 'rupavo.com/',
-              ),
-              validator: (v) => v?.isEmpty == true ? 'Wajib diisi' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descController,
-              decoration: const InputDecoration(labelText: 'Deskripsi Singkat'),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _createShop,
-              child: _isLoading
-                  ? const CircularProgressIndicator()
-                  : const Text('Simpan & Mulai'),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-}
+enum OnboardingStep { initial, askingName, askingDescription }
 
 enum ChatRole { user, assistant }
 

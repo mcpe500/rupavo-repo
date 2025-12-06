@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:rupavo_merchant_app/models/shop.dart';
 import 'package:rupavo_merchant_app/services/auth_service.dart';
 import 'package:rupavo_merchant_app/screens/product_list_screen.dart';
-import 'package:rupavo_merchant_app/screens/report_screen.dart';
+import 'package:rupavo_merchant_app/screens/product_list_screen.dart';
+import 'package:rupavo_merchant_app/screens/sales_screen.dart';
 import 'package:rupavo_merchant_app/screens/chat_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Shop shop;
+  final AuthService? authService;
 
-  const DashboardScreen({super.key, required this.shop});
+  const DashboardScreen({super.key, required this.shop, this.authService});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -23,10 +25,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _pages = [
-      HomeScreen(shop: widget.shop),
-      ProductListScreen(shopId: widget.shop.id),
-      ReportScreen(shopId: widget.shop.id),
+      HomeScreen(shop: widget.shop, authService: widget.authService),
       ChatScreen(shopId: widget.shop.id),
+      ProductListScreen(shopId: widget.shop.id),
+      SalesScreen(shopId: widget.shop.id),
     ];
   }
 
@@ -48,19 +50,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: 'Beranda',
           ),
           NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Coach',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
             selectedIcon: Icon(Icons.inventory_2),
             label: 'Produk',
           ),
           NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics),
-            label: 'Laporan',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: 'Coach',
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'Penjualan', // Sales
           ),
         ],
       ),
@@ -70,8 +72,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 class HomeScreen extends StatelessWidget {
   final Shop shop;
+  final AuthService? authService;
 
-  const HomeScreen({super.key, required this.shop});
+  const HomeScreen({super.key, required this.shop, this.authService});
 
   @override
   Widget build(BuildContext context) {
@@ -80,93 +83,79 @@ class HomeScreen extends StatelessWidget {
         title: Text(shop.name),
         actions: [
           IconButton(
+            icon: const Icon(Icons.person_outline),
+            onPressed: () {}, // Profile placeholder
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => AuthService().signOut(),
+            onPressed: () => (authService ?? AuthService()).signOut(),
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSummaryCard(
+          _buildPrimaryStatCard(
             context,
-            title: 'Penjualan Hari Ini',
-            value: 'Rp 0',
-            icon: Icons.attach_money,
-            color: Colors.green,
-          ),
-          const SizedBox(height: 16),
-          _buildSummaryCard(
-            context,
-            title: 'Pesanan Baru',
-            value: '0',
-            icon: Icons.shopping_bag,
-            color: Colors.orange,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Aksi Cepat',
-            style: Theme.of(context).textTheme.titleLarge,
+            title: 'Pendapatan Hari Ini',
+            value: 'Rp 350.000', // Mock data match web
+            trend: '+5%',
           ),
           const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
-                child: _buildActionCard(
+                child: _buildSecondaryStatCard(
                   context,
-                  icon: Icons.add_box,
-                  label: 'Tambah Produk',
-                  onTap: () {
-                    // Navigate to add product
-                  },
+                  title: 'Pesanan',
+                  value: '12',
+                  icon: Icons.shopping_bag,
+                  color: Colors.orange,
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildActionCard(
+                child: _buildSecondaryStatCard(
                   context,
-                  icon: Icons.share,
-                  label: 'Bagikan Toko',
-                  onTap: () {
-                    // Share logic
-                  },
+                  title: 'Pengunjung',
+                  value: '210',
+                  icon: Icons.people,
+                  color: Colors.blue,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          // Removed Action Grid to match web's clean look
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context,
-      {required String title,
-      required String value,
-      required IconData icon,
-      required Color color}) {
+  Widget _buildPrimaryStatCard(BuildContext context,
+      {required String title, required String value, required String trend}) {
     return Card(
-      elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: color, size: 32),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Colors.grey[600],
+            )),
+            const SizedBox(height: 8),
+            Text(value, style: Theme.of(context).textTheme.displaySmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary, // Green
+            )),
+            const SizedBox(height: 8),
+            Row(
               children: [
-                Text(title, style: Theme.of(context).textTheme.bodyMedium),
-                Text(value,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        )),
+                Icon(Icons.trending_up, size: 16, color: Colors.green),
+                const SizedBox(width: 4),
+                Text(trend, style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 4),
+                Text('dari kemarin', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
           ],
@@ -175,23 +164,34 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionCard(BuildContext context,
-      {required IconData icon,
-      required String label,
-      required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Card(
-        elevation: 1,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24),
-          child: Column(
-            children: [
-              Icon(icon, size: 32, color: Theme.of(context).primaryColor),
-              const SizedBox(height: 8),
-              Text(label, style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ),
+  Widget _buildSecondaryStatCard(BuildContext context,
+      {required String title,
+      required String value,
+      required IconData icon,
+      required Color color}) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 12),
+            Text(title, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.grey[600],
+            )),
+            const SizedBox(height: 4),
+            Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            )),
+          ],
         ),
       ),
     );

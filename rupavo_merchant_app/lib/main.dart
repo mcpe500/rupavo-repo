@@ -24,7 +24,14 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final AuthService? authService;
+  final ShopService? shopService;
+
+  const MyApp({
+    super.key,
+    this.authService,
+    this.shopService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,18 +40,28 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
-      home: const AuthGate(),
+      home: AuthGate(
+        authService: authService,
+        shopService: shopService,
+      ),
     );
   }
 }
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  final AuthService? authService;
+  final ShopService? shopService;
+
+  const AuthGate({
+    super.key,
+    this.authService,
+    this.shopService,
+  });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<AuthState>(
-      stream: AuthService().authStateChanges,
+      stream: (authService ?? AuthService()).authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -57,7 +74,7 @@ class AuthGate extends StatelessWidget {
         if (session != null) {
           // User is logged in, check if they have a shop
           return FutureBuilder<Shop?>(
-            future: ShopService().getCurrentShop(),
+            future: (shopService ?? ShopService()).getCurrentShop(),
             builder: (context, shopSnapshot) {
               if (shopSnapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
@@ -67,14 +84,14 @@ class AuthGate extends StatelessWidget {
 
               final shop = shopSnapshot.data;
               if (shop != null) {
-                return DashboardScreen(shop: shop);
+                return DashboardScreen(shop: shop, authService: authService);
               } else {
                 return const OnboardingScreen();
               }
             },
           );
         } else {
-          return const LoginScreen();
+          return LoginScreen(authService: authService);
         }
       },
     );

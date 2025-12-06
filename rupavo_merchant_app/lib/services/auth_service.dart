@@ -3,7 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rupavo_merchant_app/env.dart';
 
 class AuthService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase;
+  
+  AuthService({SupabaseClient? supabase}) 
+      : _supabase = supabase ?? Supabase.instance.client;
   
   // IMPORTANT: Use Web Client ID (not Android Client ID) for Supabase
   final google_sign_in.GoogleSignIn _googleSignIn = google_sign_in.GoogleSignIn(

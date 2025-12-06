@@ -2,7 +2,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/shop.dart';
 
 class ShopService {
-  final SupabaseClient _supabase = Supabase.instance.client;
+  final SupabaseClient _supabase;
+
+  ShopService({SupabaseClient? supabase})
+      : _supabase = supabase ?? Supabase.instance.client;
 
   /// Get the current user's shop
   Future<Shop?> getCurrentShop() async {

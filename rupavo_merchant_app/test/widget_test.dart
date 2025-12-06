@@ -1,30 +1,36 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:mocktail/mocktail.dart';
 import 'package:rupavo_merchant_app/main.dart';
+import 'package:rupavo_merchant_app/screens/login_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'helpers/mock_services.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  late MockAuthService mockAuthService;
+  late MockShopService mockShopService;
+
+  setUp(() {
+    mockAuthService = MockAuthService();
+    mockShopService = MockShopService();
+
+    // Stub authStateChanges to return a session-less state (Unauthenticated)
+    when(() => mockAuthService.authStateChanges).thenAnswer(
+      (_) => Stream.value(AuthState(AuthChangeEvent.initialSession, null)),
+    );
+  });
+
+  testWidgets('App starts and shows login screen', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(
+      authService: mockAuthService,
+      shopService: mockShopService,
+    ));
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that LoginScreen is shown
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Rupavo Merchant'), findsOneWidget);
   });
 }
