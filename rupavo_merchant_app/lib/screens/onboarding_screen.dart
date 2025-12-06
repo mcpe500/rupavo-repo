@@ -73,11 +73,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Build conversation history (exclude the current message we just added)
+      final history = _messages
+          .take(_messages.length - 1) // Exclude the last message (current user message)
+          .map((msg) => {
+                'role': msg.role == ChatRole.user ? 'user' : 'assistant',
+                'content': msg.content,
+              })
+          .toList();
+
       // Call Supabase Edge Function
       final response = await _functionsService.chatWithRupavo(
         shopId: 'onboarding',
         message: text,
         sessionId: _sessionId,
+        history: history, // Pass conversation history
       );
 
       if (response.success && response.reply != null) {
