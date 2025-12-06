@@ -4,6 +4,7 @@ import 'package:rupavo_merchant_app/services/auth_service.dart';
 import 'package:rupavo_merchant_app/screens/product_list_screen.dart';
 import 'package:rupavo_merchant_app/screens/report_screen.dart';
 import 'package:rupavo_merchant_app/screens/chat_screen.dart';
+import 'package:rupavo_merchant_app/screens/storefront_designer_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Shop shop;
@@ -156,6 +157,22 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                 child: _buildActionCard(
                   context,
+                  icon: Icons.storefront,
+                  label: 'Etalase Toko',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => StorefrontDesignerScreen(shop: shop),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildActionCard(
+                  context,
                   icon: Icons.add_box,
                   label: 'Tambah Produk',
                   onTap: () {
@@ -163,7 +180,11 @@ class HomeScreen extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 16),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
               Expanded(
                 child: _buildActionCard(
                   context,
@@ -174,6 +195,8 @@ class HomeScreen extends StatelessWidget {
                   },
                 ),
               ),
+              const SizedBox(width: 16),
+              const Expanded(child: SizedBox()), // Empty space for alignment
             ],
           ),
         ],
