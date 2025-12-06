@@ -1,9 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const KOLOSAL_API_KEY = Deno.env.get('KOLOSAL_API_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+const KOLOSAL_API_URL = 'https://api.kolosal.ai/v1/chat/completions'
+const KOLOSAL_MODEL = 'Qwen 3 30BA3B'
 
 const SYSTEM_PROMPT = `Kamu adalah **"Etalase Toko Online"**, asisten AI yang tugasnya merancang tampilan halaman toko online untuk pemilik usaha kecil dan UMKM.
 
@@ -164,43 +167,50 @@ ${user_prompt || 'Buatkan desain etalase yang menarik sesuai dengan karakter tok
 
 Buatkan desain etalase toko online dalam format JSON sesuai spesifikasi.`
 
-    // Call Claude API
-    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call Kolosal API
+    console.log('Calling Kolosal API with model:', KOLOSAL_MODEL)
+    const kolosalResponse = await fetch(KOLOSAL_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
+        'Authorization': `Bearer ${KOLOSAL_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4096,
-        temperature: 0.8,
-        system: SYSTEM_PROMPT,
+        model: KOLOSAL_MODEL,
         messages: [
+          {
+            role: 'system',
+            content: SYSTEM_PROMPT
+          },
           {
             role: 'user',
             content: userMessage
           }
-        ]
+        ],
+        max_tokens: 4096,
+        temperature: 0.8
       })
     })
 
-    if (!anthropicResponse.ok) {
-      const errorText = await anthropicResponse.text()
-      throw new Error(`Anthropic API error: ${errorText}`)
+    if (!kolosalResponse.ok) {
+      const errorText = await kolosalResponse.text()
+      console.error('Kolosal API error:', errorText)
+      throw new Error(`Kolosal API error: ${errorText}`)
     }
 
-    const anthropicData = await anthropicResponse.json()
-    const assistantMessage = anthropicData.content[0].text
+    const kolosalData = await kolosalResponse.json()
+    console.log('Kolosal API response received')
+
+    // Extract response from OpenAI-compatible format
+    const assistantMessage = kolosalData.choices?.[0]?.message?.content || ''
 
     // Parse JSON from AI response
     let storefrontDesign
     try {
       // Extract JSON from markdown code blocks if present
-      const jsonMatch = assistantMessage.match(/```json\n([\s\S]*?)\n```/) || 
-                       assistantMessage.match(/```\n([\s\S]*?)\n```/)
-      
+      const jsonMatch = assistantMessage.match(/```json\n([\s\S]*?)\n```/) ||
+        assistantMessage.match(/```\n([\s\S]*?)\n```/)
+
       const jsonText = jsonMatch ? jsonMatch[1] : assistantMessage
       storefrontDesign = JSON.parse(jsonText.trim())
     } catch (parseError) {
@@ -231,7 +241,7 @@ Buatkan desain etalase toko online dalam format JSON sesuai spesifikasi.`
         design_prompt: user_prompt || null,
         is_active: true,
         meta: {
-          model: 'claude-3-5-sonnet-20241022',
+          model: KOLOSAL_MODEL,
           temperature: 0.8,
           generated_at: new Date().toISOString(),
           product_count: products?.length || 0,
@@ -261,7 +271,7 @@ Buatkan desain etalase toko online dalam format JSON sesuai spesifikasi.`
   } catch (error) {
     console.error('Error in ai-generate-storefront:', error)
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error.message || 'Internal server error',
         details: error.toString()
       }),
