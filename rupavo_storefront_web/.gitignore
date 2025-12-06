@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Google Services - API keys and other sensitive info
+client_secret_1053914508428-p6rugm73ka047hpl6cv4oibgq9fdh027.apps.googleusercontent.com.json
