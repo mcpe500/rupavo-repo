@@ -5,14 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rupavo_merchant_app/screens/dashboard_screen.dart';
 import 'package:rupavo_merchant_app/models/shop.dart';
-import '../helpers/mock_services.dart';
 
 void main() {
   late Shop testShop;
-  late MockAuthService mockAuthService;
 
   setUp(() {
-    mockAuthService = MockAuthService();
     testShop = Shop(
       id: 'test-shop-id',
       ownerId: 'test-owner-id',
@@ -31,7 +28,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData.light(),
-          home: DashboardScreen(shop: testShop, authService: mockAuthService),
+          home: DashboardScreen(shop: testShop),
         ),
       );
       await tester.pumpAndSettle();
@@ -48,7 +45,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData.dark(),
-          home: DashboardScreen(shop: testShop, authService: mockAuthService),
+          home: DashboardScreen(shop: testShop),
         ),
       );
       await tester.pumpAndSettle();

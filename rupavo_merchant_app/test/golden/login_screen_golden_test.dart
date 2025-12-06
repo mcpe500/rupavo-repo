@@ -1,23 +1,18 @@
+// Golden tests for LoginScreen
+// Captures pixel-perfect screenshots for visual regression testing
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rupavo_merchant_app/screens/login_screen.dart';
-import '../helpers/mock_services.dart';
 
 void main() {
-  late MockAuthService mockAuthService;
-
-  setUp(() {
-    mockAuthService = MockAuthService();
-    // Stub methods if necessary (e.g. if invoked during build)
-  });
-
   group('LoginScreen Golden Tests', () {
     testWidgets('matches golden file - default state', (tester) async {
       // Arrange
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData.light(),
-          home: LoginScreen(authService: mockAuthService),
+          home: const LoginScreen(),
         ),
       );
       await tester.pumpAndSettle();
@@ -34,7 +29,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData.dark(),
-          home: LoginScreen(authService: mockAuthService),
+          home: const LoginScreen(),
         ),
       );
       await tester.pumpAndSettle();

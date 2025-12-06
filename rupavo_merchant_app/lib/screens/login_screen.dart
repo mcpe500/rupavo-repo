@@ -3,23 +3,15 @@ import 'package:rupavo_merchant_app/services/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginScreen extends StatefulWidget {
-  final AuthService? authService;
-
-  const LoginScreen({super.key, this.authService});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final AuthService _authService;
+  final AuthService _authService = AuthService();
   bool _isLoading = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _authService = widget.authService ?? AuthService();
-  }
 
   Future<void> _handleGoogleSignIn() async {
     setState(() {

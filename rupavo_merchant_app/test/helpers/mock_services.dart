@@ -5,13 +5,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rupavo_merchant_app/services/auth_service.dart';
 import 'package:rupavo_merchant_app/services/shop_service.dart';
-
-// =============================================================================
-// Mock Services
-// =============================================================================
-
-class MockAuthService extends Mock implements AuthService {}
-class MockShopService extends Mock implements ShopService {}
+import 'package:rupavo_merchant_app/services/supabase_functions_service.dart';
 
 // =============================================================================
 // Mock Supabase Client
@@ -25,6 +19,18 @@ class MockSupabaseQueryBuilder extends Mock implements SupabaseQueryBuilder {}
 
 class MockPostgrestFilterBuilder<T> extends Mock
     implements PostgrestFilterBuilder<T> {}
+
+class MockFunctionsClient extends Mock implements FunctionsClient {}
+
+// =============================================================================
+// Mock App Services
+// =============================================================================
+
+class MockAuthService extends Mock implements AuthService {}
+
+class MockShopService extends Mock implements ShopService {}
+
+class MockSupabaseFunctionsService extends Mock implements SupabaseFunctionsService {}
 
 // =============================================================================
 // Fake Classes for registerFallbackValue
@@ -40,6 +46,8 @@ class FakeUser extends Fake implements User {
   String? get email => 'fake@example.com';
 }
 
+class FakeChatResponse extends Fake implements ChatResponse {}
+
 // =============================================================================
 // Setup function to register fallback values
 // =============================================================================
@@ -47,6 +55,7 @@ class FakeUser extends Fake implements User {
 void setUpMocktail() {
   registerFallbackValue(FakeAuthResponse());
   registerFallbackValue(FakeUser());
+  registerFallbackValue(FakeChatResponse());
 }
 
 // =============================================================================

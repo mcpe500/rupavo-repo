@@ -68,15 +68,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: product.imageUrl != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(product.imageUrl!, fit: BoxFit.cover),
-                          )
-                        : Icon(Icons.inventory_2, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ? Image.network(product.imageUrl!, fit: BoxFit.cover)
+                        : const Icon(Icons.image_not_supported, color: Colors.grey),
                   ),
                   title: Text(product.name),
                   subtitle: Text('Stok: ${product.stock}'),

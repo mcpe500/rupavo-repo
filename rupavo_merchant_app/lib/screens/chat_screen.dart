@@ -119,8 +119,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isUser
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.surfaceContainerHighest ?? Colors.grey[200],
+                          ? AppTheme.lightPrimary
+                          : Colors.grey[200],
                       borderRadius: BorderRadius.circular(16).copyWith(
                         bottomRight: isUser ? Radius.zero : null,
                         bottomLeft: !isUser ? Radius.zero : null,
@@ -132,7 +132,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Text(
                       msg.content,
                       style: TextStyle(
-                        color: isUser ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
+                        color: isUser ? Colors.white : Colors.black87,
                       ),
                     ),
                   ),
