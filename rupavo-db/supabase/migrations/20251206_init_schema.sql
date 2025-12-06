@@ -21,6 +21,7 @@ begin
 end;
 $$ language plpgsql;
 
+drop trigger if exists profiles_set_updated_at on public.profiles;
 create trigger profiles_set_updated_at
 before update on public.profiles
 for each row
@@ -47,6 +48,7 @@ create table if not exists public.shops (
 create index if not exists idx_shops_owner_id on public.shops(owner_id);
 create index if not exists idx_shops_slug on public.shops(slug);
 
+drop trigger if exists shops_set_updated_at on public.shops;
 create trigger shops_set_updated_at
 before update on public.shops
 for each row
@@ -75,6 +77,7 @@ create table if not exists public.products (
 create index if not exists idx_products_shop_id on public.products(shop_id);
 create index if not exists idx_products_active on public.products(shop_id, is_active);
 
+drop trigger if exists products_set_updated_at on public.products;
 create trigger products_set_updated_at
 before update on public.products
 for each row
@@ -85,8 +88,17 @@ execute procedure public.set_current_timestamp_updated_at();
 -- 4) ORDERS
 -----------------------------
 -- Minimalistic order table focused on analytics & simple checkout
-create type public.order_source as enum ('manual', 'storefront');
-create type public.order_status as enum ('draft', 'completed', 'cancelled');
+do $$ begin
+  create type public.order_source as enum ('manual', 'storefront');
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create type public.order_status as enum ('draft', 'completed', 'cancelled');
+exception
+  when duplicate_object then null;
+end $$;
 
 create table if not exists public.orders (
   id              uuid primary key default gen_random_uuid(),
@@ -105,6 +117,7 @@ create table if not exists public.orders (
 create index if not exists idx_orders_shop_id on public.orders(shop_id);
 create index if not exists idx_orders_shop_id_created_at on public.orders(shop_id, created_at);
 
+drop trigger if exists orders_set_updated_at on public.orders;
 create trigger orders_set_updated_at
 before update on public.orders
 for each row
@@ -130,7 +143,11 @@ create index if not exists idx_order_items_product_id on public.order_items(prod
 -----------------------------
 -- 6) AI REPORTS
 -----------------------------
-create type public.report_granularity as enum ('daily', 'weekly', 'monthly', 'custom');
+do $$ begin
+  create type public.report_granularity as enum ('daily', 'weekly', 'monthly', 'custom');
+exception
+  when duplicate_object then null;
+end $$;
 
 create table if not exists public.ai_reports (
   id              uuid primary key default gen_random_uuid(),
@@ -158,6 +175,7 @@ create table if not exists public.storefront_layouts (
   updated_at      timestamptz default now()
 );
 
+drop trigger if exists storefront_layouts_set_updated_at on public.storefront_layouts;
 create trigger storefront_layouts_set_updated_at
 before update on public.storefront_layouts
 for each row
@@ -167,7 +185,11 @@ execute procedure public.set_current_timestamp_updated_at();
 -----------------------------
 -- 8) AI CONVERSATIONS (CHAT DENGAN RUPAVO)
 -----------------------------
-create type public.ai_role as enum ('user', 'assistant', 'system');
+do $$ begin
+  create type public.ai_role as enum ('user', 'assistant', 'system');
+exception
+  when duplicate_object then null;
+end $$;
 
 create table if not exists public.ai_conversations (
   id              uuid primary key default gen_random_uuid(),
@@ -198,63 +220,76 @@ alter table public.ai_conversations enable row level security;
 -- Policies
 
 -- Profiles
+drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view own profile"
   on public.profiles for select
   using ( auth.uid() = id );
 
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
   on public.profiles for update
   using ( auth.uid() = id );
 
 -- Shops
+drop policy if exists "Owner can manage own shops" on public.shops;
 create policy "Owner can manage own shops"
   on public.shops for all
   using ( owner_id = auth.uid() )
   with check ( owner_id = auth.uid() );
 
+drop policy if exists "Public can view published shops" on public.shops;
 create policy "Public can view published shops"
   on public.shops for select
   using ( storefront_published = true );
 
 -- Products
+drop policy if exists "Owner can manage own products" on public.products;
 create policy "Owner can manage own products"
   on public.products for all
   using ( shop_id in (select id from public.shops where owner_id = auth.uid()) )
   with check ( shop_id in (select id from public.shops where owner_id = auth.uid()) );
 
+drop policy if exists "Public can view active products of published shops" on public.products;
 create policy "Public can view active products of published shops"
   on public.products for select
   using ( is_active = true and shop_id in (select id from public.shops where storefront_published = true) );
 
 -- Orders
+drop policy if exists "Owner can manage orders of their shop" on public.orders;
 create policy "Owner can manage orders of their shop"
   on public.orders for all
   using ( shop_id in (select id from public.shops where owner_id = auth.uid()) )
   with check ( shop_id in (select id from public.shops where owner_id = auth.uid()) );
 
 -- Order Items
+drop policy if exists "Owner can manage order items of their shop" on public.order_items;
 create policy "Owner can manage order items of their shop"
   on public.order_items for all
   using ( order_id in (select id from public.orders where shop_id in (select id from public.shops where owner_id = auth.uid())) )
   with check ( order_id in (select id from public.orders where shop_id in (select id from public.shops where owner_id = auth.uid())) );
 
 -- AI Reports
+drop policy if exists "Owner can view their shop reports" on public.ai_reports;
 create policy "Owner can view their shop reports"
   on public.ai_reports for select
   using ( shop_id in (select id from public.shops where owner_id = auth.uid()) );
 
 -- Storefront Layouts
+drop policy if exists "Owner can manage their shop layout" on public.storefront_layouts;
 create policy "Owner can manage their shop layout"
   on public.storefront_layouts for all
   using ( shop_id in (select id from public.shops where owner_id = auth.uid()) )
   with check ( shop_id in (select id from public.shops where owner_id = auth.uid()) );
 
+drop policy if exists "Public can view layout of published shops" on public.storefront_layouts;
 create policy "Public can view layout of published shops"
   on public.storefront_layouts for select
   using ( shop_id in (select id from public.shops where storefront_published = true) );
 
 -- AI Conversations
+drop policy if exists "Owner can manage their chat logs" on public.ai_conversations;
 create policy "Owner can manage their chat logs"
   on public.ai_conversations for all
   using ( shop_id in (select id from public.shops where owner_id = auth.uid()) )
   with check ( shop_id in (select id from public.shops where owner_id = auth.uid()) );
+

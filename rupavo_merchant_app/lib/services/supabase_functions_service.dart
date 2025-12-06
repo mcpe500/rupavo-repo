@@ -14,6 +14,7 @@ class SupabaseFunctionsService {
     required String shopId,
     required String message,
     String? sessionId,
+    List<Map<String, String>>? history, // Conversation history for context
   }) async {
     LoggerService.info('🤖 AI Chat Request: shopId=$shopId, sessionId=$sessionId');
     LoggerService.debug('Message: $message');
@@ -25,6 +26,7 @@ class SupabaseFunctionsService {
           'shop_id': shopId,
           'message': message,
           if (sessionId != null) 'session_id': sessionId,
+          if (history != null) 'history': history,
         },
       );
 
