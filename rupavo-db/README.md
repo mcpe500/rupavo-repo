@@ -1,25 +1,3 @@
-# Rupavo Database
-
-Database management untuk project Rupavo menggunakan Supabase CLI.
-
-## 📋 Quick Start
-
-### 1. Install Dependencies
-
-```bash
-npm install
-```
-
-### 2. Login ke Supabase
-
-```bash
-npx supabase login
-```
-
-### 3. Link ke Project Cloud
-
-Dapatkan **Project Reference ID** dari URL dashboard: `app.supabase.com/project/<PROJECT_ID>`
-
 ```bash
 npm run link -- --project-ref <PROJECT_ID>
 ```

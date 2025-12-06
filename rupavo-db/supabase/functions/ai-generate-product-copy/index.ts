@@ -3,8 +3,8 @@
 // Generate nama, deskripsi, dan tagline produk dengan AI
 // =============================================================================
 
-import { serve } from "std/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+// import { serve } from "std/http/server.ts"; // Removed
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -30,7 +30,7 @@ interface ProductCopyResponse {
     error?: string;
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
     }
