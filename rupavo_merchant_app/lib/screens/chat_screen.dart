@@ -9,6 +9,7 @@ import 'package:rupavo_merchant_app/services/tool_call_parser.dart';
 import 'package:rupavo_merchant_app/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rupavo_merchant_app/services/storage_service.dart';
+import 'package:uuid/uuid.dart';
 
 class ChatScreen extends StatefulWidget {
   final String shopId;
@@ -39,7 +40,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     // Generate thread ID untuk conversation ini
-    _threadId = DateTime.now().millisecondsSinceEpoch.toString();
+    _threadId = const Uuid().v4();
     _loadChatHistory();
   }
 
