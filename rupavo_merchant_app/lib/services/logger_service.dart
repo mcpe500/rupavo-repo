@@ -5,6 +5,8 @@ class LoggerService {
 
   /// Log debug message (development only)
   static void debug(String message, [dynamic error, StackTrace? stackTrace]) {
+    final msg = '🐛 [DEBUG] $message';
+    print(msg); // Ensure visibility in all consoles
     developer.log(
       message,
       name: '$_appName:DEBUG',
@@ -16,6 +18,8 @@ class LoggerService {
 
   /// Log info message (general flow)
   static void info(String message) {
+    final msg = 'ℹ️ [INFO] $message';
+    print(msg); // Ensure visibility in all consoles
     developer.log(
       message,
       name: '$_appName:INFO',
@@ -25,6 +29,8 @@ class LoggerService {
 
   /// Log warning message (potential issues)
   static void warning(String message, [dynamic error, StackTrace? stackTrace]) {
+    final msg = '⚠️ [WARN] $message';
+    print(msg); // Ensure visibility in all consoles
     developer.log(
       message,
       name: '$_appName:WARN',
@@ -36,6 +42,11 @@ class LoggerService {
 
   /// Log error message (critical failures)
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
+    final msg = '❌ [ERROR] $message';
+    print(msg); // Ensure visibility in all consoles
+    if (error != null) print('Error: $error');
+    if (stackTrace != null) print('Stack: $stackTrace');
+    
     developer.log(
       message,
       name: '$_appName:ERROR',

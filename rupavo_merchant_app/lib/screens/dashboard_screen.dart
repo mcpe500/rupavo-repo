@@ -88,6 +88,48 @@ class HomeScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Welcome banner with Rupavo mascot
+          Card(
+            elevation: 2,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade50, Colors.purple.shade50],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Selamat Datang! 👋',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Mari kembangkan bisnis ${shop.name} bersama Rupavo',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Image.asset(
+                    'assets/images/rupavo-image-3-removebg-preview.png',
+                    height: 80,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _buildSummaryCard(
             context,
             title: 'Penjualan Hari Ini',
