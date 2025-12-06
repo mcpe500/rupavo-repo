@@ -115,12 +115,16 @@ Deno.serve(async (req: Request) => {
                 dateFilter = now.toISOString();
         }
 
-        // Get orders
+        // Get orders with items
         const { data: orders, error: ordersError } = await supabase
             .from("orders")
             .select(`
-                id, status, total, created_at,
-                order_items (product_name, quantity, subtotal)
+                id, status, total_amount, created_at,
+                order_items (
+                    quantity, 
+                    unit_price,
+                    products (name)
+                )
             `)
             .eq("shop_id", shop_id)
             .gte("created_at", dateFilter);
@@ -131,17 +135,19 @@ Deno.serve(async (req: Request) => {
         const completedOrders = orders?.filter((o: any) => o.status === "completed") || [];
         const cancelledOrders = orders?.filter((o: any) => o.status === "cancelled") || [];
 
-        const totalRevenue = completedOrders.reduce((sum: number, o: any) => sum + (o.total || 0), 0);
+        const totalRevenue = completedOrders.reduce((sum: number, o: any) => sum + (o.total_amount || 0), 0);
         const avgOrderValue = completedOrders.length > 0 ? totalRevenue / completedOrders.length : 0;
 
         // Calculate top products
         const productMap = new Map<string, { quantity: number; revenue: number }>();
         orders?.forEach((order: any) => {
             (order.order_items as any[] || []).forEach((item: any) => {
-                const existing = productMap.get(item.product_name) || { quantity: 0, revenue: 0 };
-                productMap.set(item.product_name, {
+                const productName = item.products?.name || "Unknown Product";
+                const subtotal = item.quantity * item.unit_price;
+                const existing = productMap.get(productName) || { quantity: 0, revenue: 0 };
+                productMap.set(productName, {
                     quantity: existing.quantity + item.quantity,
-                    revenue: existing.revenue + item.subtotal,
+                    revenue: existing.revenue + subtotal,
                 });
             });
         });
@@ -187,14 +193,14 @@ Format JSON:
   "action_items": ["...", "...", "..."]
 }`;
 
-        const kolosalResponse = await fetch("https://api.kolosal.com/v1/chat/completions", {
+        const kolosalResponse = await fetch("https://api.kolosal.ai/v1/chat/completions", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${kolosalApiKey}`,
             },
             body: JSON.stringify({
-                model: "kolosal-1-full",
+                model: "Qwen 3 30BA3B",
                 messages: [{ role: "user", content: prompt }],
                 response_format: { type: "json_object" },
             }),

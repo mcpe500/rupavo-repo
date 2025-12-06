@@ -24,6 +24,8 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _fetchReport() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
       _error = null;
@@ -35,6 +37,8 @@ class _ReportScreenState extends State<ReportScreen> {
         period: _selectedPeriod,
       );
 
+      if (!mounted) return;
+
       if (response.success && response.data != null) {
         setState(() {
           _reportData = response.data;
@@ -45,13 +49,16 @@ class _ReportScreenState extends State<ReportScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

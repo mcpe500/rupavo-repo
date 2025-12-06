@@ -24,7 +24,7 @@ interface ChatResponse {
     reply?: string;
     session_id?: string;
     error?: string;
-    action?: 'shop_created' | 'product_added' | null;
+    action?: 'shop_created' | 'product_added' | 'product_suggestion' | null;
     data?: any;
 }
 
@@ -151,12 +151,14 @@ Deno.serve(async (req: Request) => {
 TUGAS UTAMA:
 Membantu user membuat toko dan menambahkan produk melalui percakapan.
 
-TOOLS (Gunakan Format JSON):
-Jika user ingin membuka toko dan sudah memberikan detail (Nama, Deskripsi), berikan response JSON ini (JANGAN tambah text lain):
+TOOLS (WAJIB Gunakan Format JSON):
+1. Jika user ingin membuka toko dan sudah memberikan detail (Nama, Deskripsi), WAJIB output JSON ini:
 { "tool": "create_shop", "args": { "name": "Nama Toko", "description": "Deskripsi singkat", "business_type": "FNB/Retail/Jasa" } }
 
-Jika user ingin menambah produk (HANYA jika toko sudah ada/bukan onboarding), response JSON:
-{ "tool": "add_product", "args": { "name": "Nama Produk", "price": 10000, "description": "Deskripsi" } }
+2. Jika user ingin menambah produk (HANYA jika toko sudah ada), WAJIB output JSON ini:
+{ "tool": "add_product", "args": { "name": "Nama Produk", "price": 10000, "description": "Deskripsi produk" } }
+
+PENTING: Ketika user minta tambah produk, JANGAN cuma bilang "sudah ditambahkan". WAJIB output JSON tool call di atas!
 
 Profil Toko Saat Ini:
 - ID: ${shop.id}
@@ -171,8 +173,8 @@ Konteks Bisnis:
 Panduan:
 1. Jika masih tahap onboarding (ID: onboarding), fokus gali informasi untuk membuat toko.
 2. Jika user memberikan info lengkap (Nama, Deskripsi), LANGSUNG panggil tool create_shop.
-3. Gunakan bahasa Indonesia yang santai.
-4. Jika tidak memanggil tool, jawab seperti biasa (text).`;
+3. Jika user minta tambah produk, LANGSUNG panggil tool add_product dengan JSON.
+4. Gunakan bahasa Indonesia yang santai.`;
 
         // 7.5 Fetch conversation history (for context continuity)
         let conversationHistory: any[] = [];
@@ -211,14 +213,14 @@ Panduan:
         // Start from most recent messages and keep within token limit
         const optimizedHistory: any[] = [];
         for (let i = conversationHistory.length - 1; i >= 0; i--) {
-          const msgTokens = estimateTokens(conversationHistory[i].content);
-          if (contextTokenCount + msgTokens <= maxContextTokens) {
-            optimizedHistory.unshift(conversationHistory[i]);
-            contextTokenCount += msgTokens;
-          } else {
-            console.log(`Token limit reached. Skipped ${i + 1} messages. Context tokens: ${contextTokenCount}`);
-            break;
-          }
+            const msgTokens = estimateTokens(conversationHistory[i].content);
+            if (contextTokenCount + msgTokens <= maxContextTokens) {
+                optimizedHistory.unshift(conversationHistory[i]);
+                contextTokenCount += msgTokens;
+            } else {
+                console.log(`Token limit reached. Skipped ${i + 1} messages. Context tokens: ${contextTokenCount}`);
+                break;
+            }
         }
 
         conversationHistory = optimizedHistory;
@@ -260,18 +262,20 @@ Panduan:
         let reply = kolosalData.choices?.[0]?.message?.content || "Maaf, saya tidak bisa merespon saat ini.";
         console.log("6. Received response from Kolosal AI:", reply);
 
-        let action = null;
+        let action: ChatResponse['action'] = null;
         let actionData = null;
 
-        // 8.5 Parse Agentic Tools
+        // 8.5 Parse Agentic Tools - Extract JSON from text
         try {
-            // Check if response looks like JSON tool call
-            const trimmedReply = reply.trim();
-            if (trimmedReply.startsWith('{') && trimmedReply.endsWith('}')) {
-                const toolCall = JSON.parse(trimmedReply);
+            // Extract JSON from response (may be embedded in text)
+            const jsonMatch = reply.match(/\{[^{}]*"tool"[^{}]*\}/);
+
+            if (jsonMatch) {
+                const toolCall = JSON.parse(jsonMatch[0]);
+                console.log("✨ TOOL CALL DETECTED:", toolCall);
 
                 if (toolCall.tool === 'create_shop' && isOnboarding) {
-                    console.log("✨ TOOL DETECTED: create_shop", toolCall.args);
+                    console.log("✨ EXECUTING: create_shop", toolCall.args);
 
                     const slug = toolCall.args.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
                     const finalSlug = `${slug}-${Date.now()}`; // Ensure uniqueness
@@ -300,29 +304,19 @@ Panduan:
                     }
 
                 } else if (toolCall.tool === 'add_product' && !isOnboarding) {
-                    console.log("✨ TOOL DETECTED: add_product", toolCall.args);
+                    console.log("✨ TOOL SUGGESTION: add_product", toolCall.args);
 
-                    const { data: newProduct, error: prodError } = await supabase
-                        .from('products')
-                        .insert({
-                            shop_id: shop.id,
-                            name: toolCall.args.name,
-                            price: toolCall.args.price,
-                            description: toolCall.args.description,
-                            is_active: true
-                        })
-                        .select()
-                        .single();
+                    action = 'product_suggestion';
+                    actionData = {
+                        ...toolCall.args,
+                        shop_id: shop.id,
+                    };
 
-                    if (prodError) {
-                        console.error("Failed to add product:", prodError);
-                        reply = "Gagal menambahkan produk.";
-                    } else {
-                        console.log("✅ Product added:", newProduct.id);
-                        action = 'product_added';
-                        actionData = newProduct;
-                        reply = `Produk **${newProduct.name}** (Rp ${newProduct.price}) berhasil ditambahkan ke etalase! 🛍️`;
-                    }
+                    const productName = toolCall.args.name;
+                    const productPrice = Number(toolCall.args.price ?? 0).toLocaleString('id-ID');
+
+                    reply = `Aku sudah siapkan draft produk **${productName}** dengan harga Rp ${productPrice}.`
+                        + ` Cek dulu detailnya, dan tekan tombol konfirmasi kalau sudah pas ya. 😊`;
                 }
             }
         } catch (e) {

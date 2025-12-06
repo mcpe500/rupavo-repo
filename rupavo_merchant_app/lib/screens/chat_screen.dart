@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:rupavo_merchant_app/screens/onboarding_screen.dart';
+import 'package:rupavo_merchant_app/models/product_preview.dart';
+import 'package:rupavo_merchant_app/screens/product_preview_dialog.dart';
 import 'package:rupavo_merchant_app/services/supabase_functions_service.dart';
 import 'package:rupavo_merchant_app/services/conversation_memory_service.dart';
+import 'package:rupavo_merchant_app/services/tool_call_parser.dart';
 import 'package:rupavo_merchant_app/theme/app_theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:rupavo_merchant_app/services/storage_service.dart';
 
 class ChatScreen extends StatefulWidget {
   final String shopId;
@@ -18,12 +24,16 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final SupabaseFunctionsService _functionsService = SupabaseFunctionsService();
   final ConversationMemoryService _memoryService = ConversationMemoryService();
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final StorageService _storageService = StorageService();
 
   late List<ChatMessage> _messages = [];
   late String _threadId;
   bool _isLoading = false;
   bool _isLoadingHistory = true;
   String? _sessionId;
+  ProductPreview? _pendingProduct;
+  bool _isProcessingAction = false;
 
   @override
   void initState() {
@@ -89,6 +99,156 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  Future<void> _handleProductSuggestion(ChatResponse response) async {
+    final preview = _extractProductPreview(response);
+    if (preview == null) {
+      return;
+    }
+
+    if (_pendingProduct != null) {
+      // Still handling previous suggestion
+      return;
+    }
+
+    setState(() {
+      _pendingProduct = preview;
+    });
+
+    await _showProductPreviewDialog(preview);
+  }
+
+  ProductPreview? _extractProductPreview(ChatResponse response) {
+    try {
+      if (response.action == 'product_suggestion' && response.data != null) {
+        return ProductPreview.fromJson(response.data!);
+      }
+
+      final reply = response.reply;
+      if (reply == null) {
+        return null;
+      }
+
+      final toolCall = ToolCallParser.parseToolCall(reply);
+      if (toolCall == null) {
+        return null;
+      }
+      return ToolCallParser.extractProductPreview(toolCall);
+    } catch (e) {
+      debugPrint('Failed to extract product preview: $e');
+      return null;
+    }
+  }
+
+  Future<void> _showProductPreviewDialog(ProductPreview preview) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return ProductPreviewDialog(
+          product: preview,
+          onCancel: () {
+            Navigator.of(dialogContext).pop();
+            if (mounted) {
+              setState(() {
+                _pendingProduct = null;
+              });
+            }
+          },
+          onConfirm: (selectedPreview, imageFile) async {
+            await _confirmProduct(selectedPreview, dialogContext, imageFile: imageFile);
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmProduct(
+    ProductPreview preview,
+    BuildContext dialogContext, {
+    XFile? imageFile,
+  }) async {
+    if (_isProcessingAction) {
+      return;
+    }
+
+    setState(() {
+      _isProcessingAction = true;
+    });
+
+    try {
+      String? imageUrl = preview.imageUrl;
+
+      if (imageFile != null) {
+        try {
+          imageUrl = await _storageService.uploadProductImage(
+            shopId: widget.shopId,
+            file: imageFile,
+          );
+        } catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Gagal mengunggah foto produk: $error'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      final productToSave = preview.copyWith(imageUrl: imageUrl);
+
+      await _supabase.from('products').insert(productToSave.toMap(shopId: widget.shopId));
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(dialogContext).pop();
+
+      final confirmationMessage = ChatMessage(
+        role: ChatRole.assistant,
+        content: 'Produk "${productToSave.name}" berhasil ditambahkan ke toko kamu! 🎉',
+      );
+
+      _addMessage(confirmationMessage);
+      await _memoryService.saveMessage(
+        shopId: widget.shopId,
+        threadId: _threadId,
+        message: confirmationMessage,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Produk "${productToSave.name}" berhasil ditambahkan.'),
+        ),
+      );
+
+      setState(() {
+        _pendingProduct = null;
+      });
+    } catch (e) {
+      debugPrint('Failed to confirm product: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menambahkan produk: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+        });
+      }
+    }
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
@@ -129,6 +289,8 @@ class _ChatScreenState extends State<ChatScreen> {
           threadId: _threadId,
           message: assistantMessage,
         );
+
+        await _handleProductSuggestion(response);
       } else {
         _addMessage(
           ChatMessage(
@@ -161,7 +323,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _messages.isEmpty
+            child: _isLoadingHistory
                 ? const Center(
                     child: CircularProgressIndicator(),
                   )
@@ -221,7 +383,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
                   ),
             ),
-          if (_isLoading)
+          if (_isLoading || _isProcessingAction)
             const Padding(
               padding: EdgeInsets.all(8.0),
               child: LinearProgressIndicator(),

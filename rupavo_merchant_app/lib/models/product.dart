@@ -33,12 +33,16 @@ class Product {
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
+    // Generate slug from name if not provided
+    final slug = json['slug'] as String? ?? 
+                 (json['name'] as String).toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+    
     return Product(
       id: json['id'] as String,
       shopId: json['shop_id'] as String,
       categoryId: json['category_id'] as String?,
       name: json['name'] as String,
-      slug: json['slug'] as String,
+      slug: slug,
       description: json['description'] as String?,
       tagline: json['tagline'] as String?,
       price: (json['price'] as num).toDouble(),

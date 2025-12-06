@@ -134,7 +134,7 @@ class ChatResponse {
   final String? reply;
   final String? sessionId;
   final String? error;
-  final String? action; // e.g., 'shop_created', 'product_added'
+  final String? action; // e.g., 'shop_created', 'product_added', 'product_suggestion'
   final Map<String, dynamic>? data;
 
   ChatResponse({
