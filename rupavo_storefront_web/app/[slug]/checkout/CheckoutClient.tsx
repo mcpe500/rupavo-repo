@@ -104,7 +104,7 @@ export function CheckoutClient({ shopSlug, shopId, shopName }: CheckoutClientPro
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}`,
+            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
             order_id: `order-${Date.now()}`,
