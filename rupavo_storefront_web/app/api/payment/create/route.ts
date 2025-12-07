@@ -69,7 +69,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const transaction = await midtransSnap.createTransaction({
+    const transactionPayload = {
       transaction_details: {
         order_id: orderId,
         gross_amount: grossAmount,
@@ -89,7 +89,11 @@ export async function POST(req: Request) {
         secure: true,
       },
       custom_field1: orderId,
-    });
+    } as Record<string, unknown>;
+
+    const transaction = await midtransSnap.createTransaction(
+      transactionPayload as any
+    );
 
     return NextResponse.json({
       token: transaction.token,
