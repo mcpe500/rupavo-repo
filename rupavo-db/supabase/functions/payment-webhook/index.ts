@@ -2,7 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { createHash } from 'https://deno.land/std@0.168.0/node/crypto.ts'
 
-const MIDTRANS_SERVER_KEY = Deno.env.get('MIDTRANS_SERVER_KEY')!
+const MIDTRANS_SERVER_KEY = Deno.env.get('MIDTRANS_SERVER_KEY')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -37,8 +37,18 @@ serve(async (req) => {
       )
     }
 
+    // Check if MIDTRANS_SERVER_KEY is configured
+    if (!MIDTRANS_SERVER_KEY) {
+      console.error('MIDTRANS_SERVER_KEY is not configured!')
+      // Return 200 to stop Midtrans from retrying, but log the error
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error', message: 'MIDTRANS_SERVER_KEY not set' }),
+        { status: 200, headers: corsHeaders() }
+      )
+    }
+
     const notification: MidtransNotification = await req.json()
-    console.log('Midtrans notification received:', notification)
+    console.log('Midtrans notification received:', JSON.stringify(notification, null, 2))
 
     // Verify signature
     const signatureKey = notification.signature_key
@@ -46,17 +56,27 @@ serve(async (req) => {
     const statusCode = notification.status_code
     const grossAmount = notification.gross_amount
 
+    // Calculate expected signature
+    const signatureInput = `${orderId}${statusCode}${grossAmount}${MIDTRANS_SERVER_KEY}`
+    console.log('Signature input (without key):', `${orderId}${statusCode}${grossAmount}[SERVER_KEY]`)
+
     const hash = createHash('sha512')
-    hash.update(`${orderId}${statusCode}${grossAmount}${MIDTRANS_SERVER_KEY}`)
+    hash.update(signatureInput)
     const calculatedSignature = hash.digest('hex')
 
+    console.log('Received signature:', signatureKey?.substring(0, 20) + '...')
+    console.log('Calculated signature:', calculatedSignature.substring(0, 20) + '...')
+
     if (signatureKey !== calculatedSignature) {
-      console.error('Invalid signature')
+      console.error('Invalid signature! Check MIDTRANS_SERVER_KEY in Supabase secrets.')
+      // Return 200 to stop retries - signature mismatch usually means wrong key
       return new Response(
-        JSON.stringify({ error: 'Invalid signature' }),
-        { status: 401, headers: corsHeaders() }
+        JSON.stringify({ error: 'Invalid signature', message: 'Signature verification failed' }),
+        { status: 200, headers: corsHeaders() }
       )
     }
+
+    console.log('Signature verified successfully!')
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -163,10 +183,10 @@ serve(async (req) => {
     console.log(`Payment processed: ${orderId} -> ${transactionStatus}`)
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         status: transactionStatus,
-        order_status: orderStatus 
+        order_status: orderStatus
       }),
       { headers: corsHeaders() }
     )

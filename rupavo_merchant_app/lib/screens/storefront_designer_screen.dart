@@ -191,7 +191,7 @@ class _StorefrontDesignerScreenState extends State<StorefrontDesignerScreen> {
   }
 
   void _shareStorefrontLink() {
-    final storefrontUrl = 'https://rupavo-storefront.vercel.app/store/${widget.shop.slug}';
+    final storefrontUrl = 'https://rupavo-storefront.vercel.app/${widget.shop.slug}';
     Share.share(
       'Lihat toko online saya di Rupavo: $storefrontUrl',
       subject: 'Toko ${widget.shop.name}',

@@ -6,6 +6,7 @@ import 'package:rupavo_merchant_app/screens/report_screen.dart';
 import 'package:rupavo_merchant_app/screens/chat_screen.dart';
 import 'package:rupavo_merchant_app/screens/storefront_designer_screen.dart';
 import 'package:rupavo_merchant_app/screens/withdraw_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Shop shop;
@@ -177,7 +178,12 @@ class HomeScreen extends StatelessWidget {
                   icon: Icons.add_box,
                   label: 'Tambah Produk',
                   onTap: () {
-                    // Navigate to add product
+                    // Navigate to products tab (index 1)
+                    if (context.findAncestorStateOfType<_DashboardScreenState>() != null) {
+                      context.findAncestorStateOfType<_DashboardScreenState>()!.setState(() {
+                        context.findAncestorStateOfType<_DashboardScreenState>()!._selectedIndex = 1;
+                      });
+                    }
                   },
                 ),
               ),
@@ -208,7 +214,11 @@ class HomeScreen extends StatelessWidget {
                   icon: Icons.share,
                   label: 'Bagikan Toko',
                   onTap: () {
-                    // Share logic
+                    final storefrontUrl = 'https://rupavo-storefront.vercel.app/${shop.slug}';
+                    Share.share(
+                      'Lihat toko online saya di Rupavo: $storefrontUrl',
+                      subject: 'Toko ${shop.name}',
+                    );
                   },
                 ),
               ),
