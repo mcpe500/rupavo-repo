@@ -6,6 +6,7 @@ import { SectionRenderer } from "./components/SectionRenderer";
 import { FooterSection } from "./components/FooterSection";
 import { ShopLayoutClient } from "./components/ShopLayoutClient";
 import { NavbarCart } from "./components/NavbarCart";
+import { ComingSoonPage } from "./components/ComingSoonPage";
 import type {
     StorefrontLayout,
     Theme,
@@ -20,6 +21,9 @@ import type {
 type RootSlugPageProps = {
     params: Promise<{
         slug: string;
+    }>;
+    searchParams: Promise<{
+        preview?: string;
     }>;
 };
 
@@ -52,20 +56,47 @@ const defaultVisualStyle: VisualStyle = {
     section_transition: 'straight',
 };
 
-export default async function RootSlugPage({ params }: RootSlugPageProps) {
+export default async function RootSlugPage({ params, searchParams }: RootSlugPageProps) {
     const { slug } = await params;
+    const { preview } = await searchParams;
     const supabase = await createClient();
 
-    // Fetch shop by slug
+    const isPreviewMode = preview === 'true';
+
+    // Fetch shop by slug - include storefront_published and owner_id
     const { data: shop, error: shopError } = await supabase
         .from("shops")
-        .select("id, name, slug, description, tagline, business_type")
+        .select("id, name, slug, description, tagline, business_type, storefront_published, owner_id")
         .eq("slug", slug)
-        .single<Shop>();
+        .single<Shop & { storefront_published: boolean; owner_id: string }>();
 
     if (shopError || !shop) {
         notFound();
     }
+
+    // Check if storefront is published
+    const isPublished = shop.storefront_published === true;
+
+    // Handle unpublished storefronts
+    let isValidOwner = false;
+    if (!isPublished) {
+        if (isPreviewMode) {
+            // Use Supabase's server-side session verification (secure)
+            // This properly verifies the JWT signature using Supabase's secret
+            const { data: { user } } = await supabase.auth.getUser();
+
+            if (user && user.id === shop.owner_id) {
+                isValidOwner = true;
+            } else {
+                return <ComingSoonPage shopName={shop.name} />;
+            }
+        } else {
+            return <ComingSoonPage shopName={shop.name} />;
+        }
+    }
+
+    // Show preview banner if valid owner previewing unpublished store
+    const showPreviewBanner = isValidOwner && !isPublished;
 
     // Fetch storefront layout
     const { data: storefrontLayout } = await supabase
@@ -124,183 +155,190 @@ export default async function RootSlugPage({ params }: RootSlugPageProps) {
     console.log('[Storefront] Sections:', sections.length, sections.map(s => s.type));
 
     return (
-        <ShopLayoutClient shop={{ 
-            id: shop.id, 
-            name: shop.name, 
+        <ShopLayoutClient shop={{
+            id: shop.id,
+            name: shop.name,
             slug: shop.slug,
             acceptOnlineOrders,
         }}>
-        <main
-            className="min-h-screen"
-            style={{
-                backgroundColor: theme.background_color,
-                fontFamily: typography?.body_font || 'Inter, sans-serif',
-            }}
-        >
-            {/* Announcement Bar (if present in sections) */}
-            {sections.filter(s => s.type === 'announcement_bar').map((section, i) => (
-                <SectionRenderer
-                    key={`announcement-${i}`}
-                    section={section}
-                    products={products || []}
-                    theme={theme}
-                    visualStyle={visualStyle}
-                />
-            ))}
-
-            {/* Navbar */}
-            <nav
-                className="sticky top-0 z-40 shadow-sm"
-                style={{ backgroundColor: theme.surface_color }}
-            >
-                <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-                    <h1
-                        className="text-xl font-bold"
-                        style={{ color: theme.primary_color }}
-                    >
-                        {shop.name}
-                    </h1>
-                    <div className="flex items-center gap-4">
-                        <NavbarCart />
-                        <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-                            ← Kembali
-                        </Link>
-                    </div>
+            {/* Preview Mode Banner */}
+            {showPreviewBanner && (
+                <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500 text-amber-900 py-2 px-4 text-center text-sm font-medium shadow-md">
+                    ⚠️ Mode Preview - Hanya Anda yang bisa melihat halaman ini. Aktifkan toggle &quot;Toko Online Aktif&quot; untuk mempublikasikan.
                 </div>
-            </nav>
-
-            {/* Hero Section */}
-            {hero ? (
-                <HeroSection
-                    hero={hero}
-                    theme={theme}
-                    visualStyle={visualStyle}
-                    shopName={shop.name}
-                />
-            ) : (
-                // Default hero if no layout
-                <section
-                    className="py-16 px-4 text-center"
-                    style={{ backgroundColor: theme.primary_color }}
-                >
-                    <div className="max-w-3xl mx-auto text-white">
-                        <h1 className="text-3xl md:text-5xl font-bold mb-4">{shop.name}</h1>
-                        <p className="text-lg opacity-90">
-                            {shop.tagline || shop.description || "Selamat datang di toko kami!"}
-                        </p>
-                    </div>
-                </section>
             )}
-
-            {/* Dynamic Sections */}
-            {sections
-                .filter(s => s.type !== 'announcement_bar' && s.type !== 'whatsapp_float' && s.type !== 'floating_badge')
-                .map((section, index) => (
+            <main
+                className="min-h-screen"
+                style={{
+                    backgroundColor: theme.background_color,
+                    fontFamily: typography?.body_font || 'Inter, sans-serif',
+                    paddingTop: showPreviewBanner ? '40px' : '0',
+                }}
+            >
+                {/* Announcement Bar (if present in sections) */}
+                {sections.filter(s => s.type === 'announcement_bar').map((section, i) => (
                     <SectionRenderer
-                        key={section.id || `section-${index}`}
+                        key={`announcement-${i}`}
                         section={section}
                         products={products || []}
                         theme={theme}
                         visualStyle={visualStyle}
-                        isAlternate={index % 2 === 1}
                     />
-                ))
-            }
+                ))}
 
-            {/* Fallback: Default product grid if no sections */}
-            {sections.length === 0 && products && products.length > 0 && (
-                <section className="py-12 px-4">
-                    <div className="max-w-6xl mx-auto">
-                        <h2 className="text-2xl font-bold text-center mb-8">Produk Kami</h2>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {products.map((product) => (
-                                <div
-                                    key={product.id}
-                                    className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden"
-                                >
-                                    <div className="h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
-                                        {product.image_url ? (
-                                            <img
-                                                src={product.image_url}
-                                                alt={product.name}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="text-gray-400 text-5xl">📦</div>
-                                        )}
-                                    </div>
-                                    <div className="p-4">
-                                        <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
-                                        {product.description && (
-                                            <p className="text-gray-500 text-sm line-clamp-2 mb-3">
-                                                {product.description}
-                                            </p>
-                                        )}
-                                        <div className="flex items-center justify-between">
-                                            <span
-                                                className="font-bold text-lg"
-                                                style={{ color: theme.primary_color }}
-                                            >
-                                                Rp {product.price.toLocaleString("id-ID")}
-                                            </span>
-                                            <button
-                                                className="px-4 py-2 rounded-lg text-white text-sm font-medium"
-                                                style={{ backgroundColor: theme.secondary_color }}
-                                            >
-                                                Beli
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                {/* Navbar */}
+                <nav
+                    className="sticky top-0 z-40 shadow-sm"
+                    style={{ backgroundColor: theme.surface_color }}
+                >
+                    <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+                        <h1
+                            className="text-xl font-bold"
+                            style={{ color: theme.primary_color }}
+                        >
+                            {shop.name}
+                        </h1>
+                        <div className="flex items-center gap-4">
+                            <NavbarCart />
+                            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+                                ← Kembali
+                            </Link>
                         </div>
                     </div>
-                </section>
-            )}
+                </nav>
 
-            {/* Footer */}
-            {footer ? (
-                <FooterSection
-                    footer={footer}
-                    theme={theme}
-                    shopName={shop.name}
-                />
-            ) : (
-                <footer
-                    className="py-8 px-4 mt-8"
-                    style={{ backgroundColor: theme.mode === 'dark' ? '#111' : '#111827' }}
-                >
-                    <div className="max-w-6xl mx-auto text-center text-white">
-                        <h3 className="text-xl font-bold mb-2">{shop.name}</h3>
-                        <p className="text-sm opacity-70">
-                            Powered by <Link href="/" className="underline">Rupavo</Link>
-                        </p>
-                    </div>
-                </footer>
-            )}
+                {/* Hero Section */}
+                {hero ? (
+                    <HeroSection
+                        hero={hero}
+                        theme={theme}
+                        visualStyle={visualStyle}
+                        shopName={shop.name}
+                    />
+                ) : (
+                    // Default hero if no layout
+                    <section
+                        className="py-16 px-4 text-center"
+                        style={{ backgroundColor: theme.primary_color }}
+                    >
+                        <div className="max-w-3xl mx-auto text-white">
+                            <h1 className="text-3xl md:text-5xl font-bold mb-4">{shop.name}</h1>
+                            <p className="text-lg opacity-90">
+                                {shop.tagline || shop.description || "Selamat datang di toko kami!"}
+                            </p>
+                        </div>
+                    </section>
+                )}
 
-            {/* Floating Elements */}
-            {floatingElements.map((element, index) => (
-                <SectionRenderer
-                    key={`floating-${index}`}
-                    section={element}
-                    products={products || []}
-                    theme={theme}
-                    visualStyle={visualStyle}
-                />
-            ))}
+                {/* Dynamic Sections */}
+                {sections
+                    .filter(s => s.type !== 'announcement_bar' && s.type !== 'whatsapp_float' && s.type !== 'floating_badge')
+                    .map((section, index) => (
+                        <SectionRenderer
+                            key={section.id || `section-${index}`}
+                            section={section}
+                            products={products || []}
+                            theme={theme}
+                            visualStyle={visualStyle}
+                            isAlternate={index % 2 === 1}
+                        />
+                    ))
+                }
 
-            {/* WhatsApp Float from sections */}
-            {sections.filter(s => s.type === 'whatsapp_float').map((section, i) => (
-                <SectionRenderer
-                    key={`wa-${i}`}
-                    section={section}
-                    products={products || []}
-                    theme={theme}
-                    visualStyle={visualStyle}
-                />
-            ))}
-        </main>
+                {/* Fallback: Default product grid if no sections */}
+                {sections.length === 0 && products && products.length > 0 && (
+                    <section className="py-12 px-4">
+                        <div className="max-w-6xl mx-auto">
+                            <h2 className="text-2xl font-bold text-center mb-8">Produk Kami</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {products.map((product) => (
+                                    <div
+                                        key={product.id}
+                                        className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden"
+                                    >
+                                        <div className="h-48 bg-gray-100 flex items-center justify-center overflow-hidden">
+                                            {product.image_url ? (
+                                                <img
+                                                    src={product.image_url}
+                                                    alt={product.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="text-gray-400 text-5xl">📦</div>
+                                            )}
+                                        </div>
+                                        <div className="p-4">
+                                            <h3 className="font-semibold text-lg mb-1">{product.name}</h3>
+                                            {product.description && (
+                                                <p className="text-gray-500 text-sm line-clamp-2 mb-3">
+                                                    {product.description}
+                                                </p>
+                                            )}
+                                            <div className="flex items-center justify-between">
+                                                <span
+                                                    className="font-bold text-lg"
+                                                    style={{ color: theme.primary_color }}
+                                                >
+                                                    Rp {product.price.toLocaleString("id-ID")}
+                                                </span>
+                                                <button
+                                                    className="px-4 py-2 rounded-lg text-white text-sm font-medium"
+                                                    style={{ backgroundColor: theme.secondary_color }}
+                                                >
+                                                    Beli
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )}
+
+                {/* Footer */}
+                {footer ? (
+                    <FooterSection
+                        footer={footer}
+                        theme={theme}
+                        shopName={shop.name}
+                    />
+                ) : (
+                    <footer
+                        className="py-8 px-4 mt-8"
+                        style={{ backgroundColor: theme.mode === 'dark' ? '#111' : '#111827' }}
+                    >
+                        <div className="max-w-6xl mx-auto text-center text-white">
+                            <h3 className="text-xl font-bold mb-2">{shop.name}</h3>
+                            <p className="text-sm opacity-70">
+                                Powered by <Link href="/" className="underline">Rupavo</Link>
+                            </p>
+                        </div>
+                    </footer>
+                )}
+
+                {/* Floating Elements */}
+                {floatingElements.map((element, index) => (
+                    <SectionRenderer
+                        key={`floating-${index}`}
+                        section={element}
+                        products={products || []}
+                        theme={theme}
+                        visualStyle={visualStyle}
+                    />
+                ))}
+
+                {/* WhatsApp Float from sections */}
+                {sections.filter(s => s.type === 'whatsapp_float').map((section, i) => (
+                    <SectionRenderer
+                        key={`wa-${i}`}
+                        section={section}
+                        products={products || []}
+                        theme={theme}
+                        visualStyle={visualStyle}
+                    />
+                ))}
+            </main>
         </ShopLayoutClient>
     );
 }

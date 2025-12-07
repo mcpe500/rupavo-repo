@@ -191,4 +191,26 @@ class StorefrontService {
       rethrow;
     }
   }
+
+  /// Toggle publish status
+  Future<bool> togglePublishStorefront(String shopId, bool publish) async {
+    if (publish) {
+      await publishStorefront(shopId);
+    } else {
+      await unpublishStorefront(shopId);
+    }
+    return publish;
+  }
+
+  /// Get current auth token for preview
+  String? getAuthToken() {
+    return _supabase.auth.currentSession?.accessToken;
+  }
+
+  /// Get storefront preview URL
+  /// Note: Authentication is handled via session cookies, not URL token
+  String getPreviewUrl(String shopSlug) {
+    const baseUrl = 'https://rupavo-storefront.vercel.app';
+    return '$baseUrl/$shopSlug?preview=true';
+  }
 }

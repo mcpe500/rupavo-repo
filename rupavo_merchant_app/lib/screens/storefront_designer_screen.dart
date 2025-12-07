@@ -3,6 +3,7 @@ import 'package:rupavo_merchant_app/models/shop.dart';
 import 'package:rupavo_merchant_app/services/storefront_service.dart';
 import 'package:rupavo_merchant_app/services/voice_service.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class StorefrontDesignerScreen extends StatefulWidget {
   final Shop shop;
@@ -22,6 +23,8 @@ class _StorefrontDesignerScreenState extends State<StorefrontDesignerScreen> {
   bool _isGenerating = false;
   bool _isLoading = true;
   bool _isListening = false;
+  bool _isPublished = false;
+  bool _isTogglingPublish = false;
   String? _errorMessage;
 
   @override
@@ -35,6 +38,7 @@ class _StorefrontDesignerScreenState extends State<StorefrontDesignerScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _isPublished = widget.shop.storefrontPublished ?? false;
     });
 
     try {
@@ -121,22 +125,64 @@ class _StorefrontDesignerScreenState extends State<StorefrontDesignerScreen> {
     }
   }
 
-  Future<void> _publishStorefront() async {
+  Future<void> _togglePublish(bool publish) async {
+    setState(() {
+      _isTogglingPublish = true;
+    });
+
     try {
-      await _storefrontService.publishStorefront(widget.shop.id);
+      await _storefrontService.togglePublishStorefront(widget.shop.id, publish);
+      setState(() {
+        _isPublished = publish;
+        _isTogglingPublish = false;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🎉 Etalase toko sudah dipublikasikan!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: Text(publish 
+              ? '🎉 Toko online sudah aktif dan bisa diakses publik!' 
+              : '🔒 Toko online dinonaktifkan'),
+            backgroundColor: publish ? Colors.green : Colors.grey,
           ),
         );
+      }
+    } catch (e) {
+      setState(() {
+        _isTogglingPublish = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengubah status: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openPreview() async {
+    final previewUrl = _storefrontService.getPreviewUrl(widget.shop.slug);
+    final uri = Uri.parse(previewUrl);
+    
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tidak dapat membuka browser'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal publish: $e'),
+            content: Text('Error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -145,7 +191,7 @@ class _StorefrontDesignerScreenState extends State<StorefrontDesignerScreen> {
   }
 
   void _shareStorefrontLink() {
-    final storefrontUrl = 'https://rupavo.com/${widget.shop.slug}';
+    final storefrontUrl = 'https://rupavo-storefront.vercel.app/store/${widget.shop.slug}';
     Share.share(
       'Lihat toko online saya di Rupavo: $storefrontUrl',
       subject: 'Toko ${widget.shop.name}',
@@ -250,22 +296,57 @@ class _StorefrontDesignerScreenState extends State<StorefrontDesignerScreen> {
                             Text('Terakhir update: ${_formatDate(_currentLayout!.updatedAt)}'),
                             const SizedBox(height: 12),
                             _buildThemePreview(_currentLayout!.theme),
+                            const SizedBox(height: 16),
+                            
+                            // Toggle Publish Switch
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _isPublished ? Colors.green.shade100 : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: SwitchListTile(
+                                title: Text(
+                                  'Toko Online Aktif',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _isPublished ? Colors.green.shade800 : Colors.grey.shade700,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  _isPublished 
+                                    ? 'Toko bisa diakses publik' 
+                                    : 'Hanya Anda yang bisa preview',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _isPublished ? Colors.green.shade700 : Colors.grey.shade600,
+                                  ),
+                                ),
+                                value: _isPublished,
+                                onChanged: _isTogglingPublish ? null : _togglePublish,
+                                activeColor: Colors.green,
+                              ),
+                            ),
                             const SizedBox(height: 12),
+                            
+                            // Action Buttons
                             Row(
                               children: [
                                 Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: _publishStorefront,
-                                    icon: const Icon(Icons.publish),
-                                    label: const Text('Publish'),
+                                  child: ElevatedButton.icon(
+                                    onPressed: _openPreview,
+                                    icon: const Icon(Icons.visibility),
+                                    label: const Text('Preview'),
+                                    style: ElevatedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: OutlinedButton.icon(
                                     onPressed: _shareStorefrontLink,
-                                    icon: const Icon(Icons.open_in_new),
-                                    label: const Text('Preview'),
+                                    icon: const Icon(Icons.share),
+                                    label: const Text('Share Link'),
                                   ),
                                 ),
                               ],

@@ -10,6 +10,7 @@ class Shop {
   final String? phone;
   final String? email;
   final String? businessType;
+  final bool? storefrontPublished;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -24,6 +25,7 @@ class Shop {
     this.phone,
     this.email,
     this.businessType,
+    this.storefrontPublished,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -40,6 +42,7 @@ class Shop {
       phone: json['phone'] as String?,
       email: json['email'] as String?,
       businessType: json['business_type'] as String?,
+      storefrontPublished: json['storefront_published'] as bool?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -57,6 +60,7 @@ class Shop {
       'phone': phone,
       'email': email,
       'business_type': businessType,
+      'storefront_published': storefrontPublished,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
