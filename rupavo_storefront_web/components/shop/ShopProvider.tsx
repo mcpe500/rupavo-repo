@@ -6,6 +6,8 @@ export interface ShopContextType {
   id: string;
   name: string;
   slug: string;
+  acceptOnlineOrders: boolean;
+  whatsappNumber?: string;
 }
 
 const ShopContext = createContext<ShopContextType | null>(null);
@@ -27,3 +29,4 @@ export function useShop() {
   }
   return context;
 }
+

@@ -85,6 +85,15 @@ export default async function RootSlugPage({ params }: RootSlugPageProps) {
         .limit(50)
         .returns<Product[]>();
 
+    // Fetch shop payment settings
+    const { data: paymentSettings } = await supabase
+        .from("shop_payment_settings")
+        .select("accept_online_orders")
+        .eq("shop_id", shop.id)
+        .maybeSingle();
+
+    const acceptOnlineOrders = paymentSettings?.accept_online_orders ?? true;
+
     // Parse layout data - database has nested structure:
     // storefrontLayout.theme (at root)
     // storefrontLayout.layout.hero (nested)
@@ -115,7 +124,12 @@ export default async function RootSlugPage({ params }: RootSlugPageProps) {
     console.log('[Storefront] Sections:', sections.length, sections.map(s => s.type));
 
     return (
-        <ShopLayoutClient shop={{ id: shop.id, name: shop.name, slug: shop.slug }}>
+        <ShopLayoutClient shop={{ 
+            id: shop.id, 
+            name: shop.name, 
+            slug: shop.slug,
+            acceptOnlineOrders,
+        }}>
         <main
             className="min-h-screen"
             style={{

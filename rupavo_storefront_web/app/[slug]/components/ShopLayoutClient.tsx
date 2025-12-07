@@ -9,6 +9,8 @@ interface ShopLayoutClientProps {
     id: string;
     name: string;
     slug: string;
+    acceptOnlineOrders: boolean;
+    whatsappNumber?: string;
   };
 }
 
@@ -24,3 +26,4 @@ export function ShopLayoutClient({ children, shop }: ShopLayoutClientProps) {
 }
 
 export { CartIcon };
+

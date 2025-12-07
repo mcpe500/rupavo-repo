@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "./CartProvider";
+import { useShop } from "@/components/shop";
 import { X, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -17,6 +18,15 @@ export function CartDrawer() {
     clearCart,
   } = useCart();
   const router = useRouter();
+  
+  // Try to get shop context, but handle case where it's not available
+  let acceptOnlineOrders = true;
+  try {
+    const shop = useShop();
+    acceptOnlineOrders = shop.acceptOnlineOrders;
+  } catch {
+    // If useShop throws (not in ShopProvider), default to true
+  }
 
   if (!isOpen) return null;
 
@@ -129,20 +139,35 @@ export function CartDrawer() {
                 Rp {totalAmount.toLocaleString("id-ID")}
               </span>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={clearCart}
-                className="px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                Hapus
-              </button>
-              <button
-                onClick={handleCheckout}
-                className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
-              >
-                Checkout
-              </button>
-            </div>
+            
+            {acceptOnlineOrders ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={clearCart}
+                  className="px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Hapus
+                </button>
+                <button
+                  onClick={handleCheckout}
+                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                >
+                  Checkout
+                </button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-sm text-gray-500 mb-3">
+                  Toko ini tidak menerima pesanan online. Silakan hubungi penjual langsung.
+                </p>
+                <button
+                  onClick={clearCart}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Kosongkan Keranjang
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

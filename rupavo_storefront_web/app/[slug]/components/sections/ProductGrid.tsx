@@ -107,16 +107,25 @@ export function ProductGrid({ section, products, theme, visualStyle }: ProductGr
                                     >
                                         Rp {product.price.toLocaleString('id-ID')}
                                     </span>
-                                    <button
-                                        onClick={() => handleAddToCart(product)}
-                                        className="px-4 py-2 text-white text-sm font-medium transition-colors hover:opacity-90"
-                                        style={{
-                                            backgroundColor: theme.secondary_color,
-                                            borderRadius: borderRadius,
-                                        }}
-                                    >
-                                        Beli
-                                    </button>
+                                    {shop.acceptOnlineOrders ? (
+                                        <button
+                                            onClick={() => handleAddToCart(product)}
+                                            className="px-4 py-2 text-white text-sm font-medium transition-colors hover:opacity-90"
+                                            style={{
+                                                backgroundColor: theme.secondary_color,
+                                                borderRadius: borderRadius,
+                                            }}
+                                        >
+                                            Beli
+                                        </button>
+                                    ) : (
+                                        <span
+                                            className="px-4 py-2 text-gray-400 text-sm font-medium bg-gray-100"
+                                            style={{ borderRadius: borderRadius }}
+                                        >
+                                            Hubungi Penjual
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>

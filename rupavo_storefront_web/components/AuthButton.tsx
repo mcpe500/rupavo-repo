@@ -43,37 +43,19 @@ export function AuthButton() {
   }
 
   if (user) {
-    const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
     const displayName = user.user_metadata?.full_name || user.user_metadata?.name;
     const email = user.email;
 
     return (
-      <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full px-2 py-1.5 shadow-sm">
-        {/* Profile Picture */}
-        <div className="relative w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
-          {avatarUrl ? (
-            <Image
-              src={avatarUrl}
-              alt={displayName || "Profile"}
-              fill
-              className="object-cover"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <span className="text-white font-semibold text-sm">
-              {email?.charAt(0).toUpperCase() || "U"}
-            </span>
-          )}
-        </div>
-
+      <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-full px-3 py-1.5 shadow-sm">
         {/* User Info */}
-        <div className="hidden sm:flex flex-col items-start min-w-0">
+        <div className="flex flex-col items-start min-w-0">
           {displayName && (
-            <span className="text-sm font-medium text-gray-900 truncate max-w-[140px]">
+            <span className="text-sm font-medium text-gray-900 truncate max-w-[160px]">
               {displayName}
             </span>
           )}
-          <span className="text-xs text-gray-500 truncate max-w-[140px]">
+          <span className="text-xs text-gray-500 truncate max-w-[160px]">
             {email}
           </span>
         </div>
@@ -81,7 +63,7 @@ export function AuthButton() {
         {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors ml-1"
+          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
           title="Keluar"
           aria-label="Logout"
         >
