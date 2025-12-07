@@ -3,12 +3,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const MIDTRANS_SERVER_KEY = Deno.env.get('MIDTRANS_SERVER_KEY')!
 const MIDTRANS_IS_PRODUCTION = Deno.env.get('MIDTRANS_IS_PRODUCTION') === 'true'
-const MIDTRANS_API_URL = MIDTRANS_IS_PRODUCTION 
+const MIDTRANS_API_URL = MIDTRANS_IS_PRODUCTION
   ? 'https://app.midtrans.com/snap/v1/transactions'
   : 'https://app.sandbox.midtrans.com/snap/v1/transactions'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const STOREFRONT_URL = Deno.env.get('STOREFRONT_URL') || 'https://rupavo.com'
 
 const PLATFORM_FEE_PERCENT = 0.05 // 5% platform fee
 
@@ -194,7 +195,7 @@ serve(async (req) => {
         },
         item_details: itemDetails,
         callbacks: {
-          finish: `${SUPABASE_URL.replace('.supabase.co', '')}.supabase.co/payment/finish?order_id=${order.id}`,
+          finish: `${STOREFRONT_URL}/payment/finish?order_id=${order.id}`,
         }
       }
 
