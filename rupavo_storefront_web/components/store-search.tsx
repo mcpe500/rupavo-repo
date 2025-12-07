@@ -41,9 +41,25 @@ export function StoreSearch({ initialStores }: StoreSearchProps) {
                     Rupavo
                 </h1>
                 <p className="text-muted-foreground">
-                    Find the best stores near you
+                    Temukan toko terbaik di sekitar Anda
                 </p>
             </div>
+
+            {/* Merchant CTA - SEO optimized */}
+            <aside className="text-center text-sm text-muted-foreground" aria-label="Informasi untuk pedagang">
+                <p>
+                    Apabila anda ingin membuka toko,{" "}
+                    <a 
+                        href="/download/rupavo-merchant.apk"
+                        className="text-primary hover:underline font-medium"
+                        title="Download Aplikasi Rupavo Merchant untuk Android"
+                        rel="noopener"
+                        aria-label="Download APK Rupavo Merchant"
+                    >
+                        Download APK Kami
+                    </a>
+                </p>
+            </aside>
 
             {/* Search Bar */}
             <div className="w-full max-w-2xl relative">
