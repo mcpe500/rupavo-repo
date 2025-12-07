@@ -21,43 +21,93 @@ function PaymentFinishContent() {
 
     useEffect(() => {
         const checkOrder = async () => {
+            // First, check URL parameters for immediate status
+            // Midtrans sends: transaction_status and status_code
+            const statusCode = searchParams.get("status_code");
+            
+            // If we have transaction_status from Midtrans callback, use it directly
+            // This handles the case where webhook hasn't updated DB yet
+            if (transactionStatus) {
+                if (transactionStatus === "capture" || transactionStatus === "settlement") {
+                    setStatus("success");
+                } else if (transactionStatus === "pending") {
+                    setStatus("pending");
+                } else if (transactionStatus === "deny" || transactionStatus === "cancel" || transactionStatus === "expire") {
+                    setStatus("failed");
+                }
+            } else if (statusCode === "200") {
+                // Status code 200 means success
+                setStatus("success");
+            }
+
             if (!orderId) {
-                setStatus("failed");
+                if (!transactionStatus && !statusCode) {
+                    setStatus("failed");
+                }
                 return;
             }
 
             const supabase = createClient();
 
-            // Fetch order details
-            const { data: order, error } = await supabase
+            // Try to fetch order by ID (could be UUID or might need to search by midtrans_order_id)
+            let order = null;
+            
+            // First try direct ID match (if it's UUID)
+            const { data: directOrder, error: directError } = await supabase
                 .from("orders")
                 .select(`
-          *,
-          shops (name, slug),
-          order_items (*, products (name))
-        `)
+                    *,
+                    shops (name, slug),
+                    order_items (*, products (name))
+                `)
                 .eq("id", orderId)
-                .single();
+                .maybeSingle();
 
-            if (error || !order) {
-                setStatus("failed");
-                return;
+            if (directOrder) {
+                order = directOrder;
+            } else {
+                // Try to find by midtrans_order_id in transactions table
+                const { data: transaction } = await supabase
+                    .from("transactions")
+                    .select("order_id")
+                    .eq("midtrans_order_id", orderId)
+                    .maybeSingle();
+
+                if (transaction?.order_id) {
+                    const { data: txOrder } = await supabase
+                        .from("orders")
+                        .select(`
+                            *,
+                            shops (name, slug),
+                            order_items (*, products (name))
+                        `)
+                        .eq("id", transaction.order_id)
+                        .single();
+                    order = txOrder;
+                }
             }
 
-            setOrderDetails(order);
-
-            // Determine status from Midtrans callback or order payment_status
-            if (transactionStatus === "capture" || transactionStatus === "settlement" || order.payment_status === "paid") {
-                setStatus("success");
-            } else if (transactionStatus === "pending" || order.payment_status === "pending") {
-                setStatus("pending");
-            } else {
+            if (order) {
+                setOrderDetails(order);
+                
+                // If we haven't set status from URL params, use DB status
+                if (!transactionStatus && !statusCode) {
+                    if (order.payment_status === "paid") {
+                        setStatus("success");
+                    } else if (order.payment_status === "pending") {
+                        setStatus("pending");
+                    } else {
+                        setStatus("failed");
+                    }
+                }
+            } else if (!transactionStatus && !statusCode) {
+                // Only set failed if we have no URL params indicating success
                 setStatus("failed");
             }
         };
 
         checkOrder();
-    }, [orderId, transactionStatus]);
+    }, [orderId, transactionStatus, searchParams]);
 
     if (status === "loading") {
         return (
