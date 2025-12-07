@@ -246,12 +246,18 @@ class _ChatScreenState extends State<ChatScreen> {
         break;
 
       case 'sale_confirmed':
-        // AI confirmed sale - now insert to database
-        if (_pendingDraftSale != null) {
-          await _insertSaleToDatabase(_pendingDraftSale!);
-          setState(() {
-            _pendingDraftSale = null;
-          });
+        // Backend already inserted to database, just clear the draft
+        // DO NOT insert again - that causes double recording!
+        setState(() {
+          _pendingDraftSale = null;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Penjualan berhasil dicatat!'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
         break;
 
@@ -270,11 +276,18 @@ class _ChatScreenState extends State<ChatScreen> {
         break;
 
       case 'expense_confirmed':
-        if (_pendingDraftExpense != null) {
-          await _insertExpenseToDatabase(_pendingDraftExpense!);
-          setState(() {
-            _pendingDraftExpense = null;
-          });
+        // Backend already inserted to database, just clear the draft
+        // DO NOT insert again - that causes double recording!
+        setState(() {
+          _pendingDraftExpense = null;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Pengeluaran berhasil dicatat!'),
+              backgroundColor: Colors.green,
+            ),
+          );
         }
         break;
 
@@ -295,109 +308,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _insertSaleToDatabase(Map<String, dynamic> saleData) async {
-    try {
-      // Insert order
-      final orderResult = await _supabase.from('orders').insert({
-        'shop_id': widget.shopId,
-        'source': 'manual',
-        'status': 'completed',
-        'total_amount': saleData['amount'] ?? 0,
-        'buyer_name': saleData['customer_name'],
-        'recorded_via': 'asisten',
-      }).select().single();
-
-      // Find or create product if product_name provided
-      final productName = saleData['product_name'];
-      if (productName != null && productName.isNotEmpty) {
-        // Check if product exists
-        final existingProduct = await _supabase
-            .from('products')
-            .select('id, price')
-            .eq('shop_id', widget.shopId)
-            .ilike('name', productName)
-            .maybeSingle();
-
-        String productId;
-        double unitPrice;
-
-        if (existingProduct != null) {
-          productId = existingProduct['id'];
-          unitPrice = (existingProduct['price'] as num).toDouble();
-        } else {
-          // Auto-create product
-          final qty = saleData['quantity'] ?? 1;
-          unitPrice = (saleData['amount'] ?? 0) / qty;
-          final newProduct = await _supabase.from('products').insert({
-            'shop_id': widget.shopId,
-            'name': productName,
-            'price': unitPrice,
-            'description': 'Dibuat otomatis oleh Asisten',
-          }).select().single();
-          productId = newProduct['id'];
-        }
-
-        // Insert order item
-        await _supabase.from('order_items').insert({
-          'order_id': orderResult['id'],
-          'product_id': productId,
-          'quantity': saleData['quantity'] ?? 1,
-          'unit_price': unitPrice,
-        });
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Penjualan berhasil dicatat!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error inserting sale: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mencatat penjualan: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _insertExpenseToDatabase(Map<String, dynamic> expenseData) async {
-    try {
-      await _supabase.from('expenses').insert({
-        'shop_id': widget.shopId,
-        'description': expenseData['description'] ?? 'Pengeluaran',
-        'amount': expenseData['amount'] ?? 0,
-        'category': expenseData['category'] ?? 'general',
-        'supplier_name': expenseData['supplier_name'],
-        'recorded_via': 'asisten',
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Pengeluaran berhasil dicatat!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error inserting expense: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mencatat pengeluaran: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
+  // NOTE: _insertSaleToDatabase and _insertExpenseToDatabase removed
+  // Backend (Edge Function) now handles all DB inserts for transactions
+  // to prevent double-recording issues
 
   ProductPreview? _extractProductPreview(ChatResponse response) {
     try {
