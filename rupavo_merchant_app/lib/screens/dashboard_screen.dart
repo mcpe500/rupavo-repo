@@ -5,6 +5,7 @@ import 'package:rupavo_merchant_app/screens/product_list_screen.dart';
 import 'package:rupavo_merchant_app/screens/report_screen.dart';
 import 'package:rupavo_merchant_app/screens/chat_screen.dart';
 import 'package:rupavo_merchant_app/screens/storefront_designer_screen.dart';
+import 'package:rupavo_merchant_app/screens/withdraw_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Shop shop;
@@ -188,6 +189,22 @@ class HomeScreen extends StatelessWidget {
               Expanded(
                 child: _buildActionCard(
                   context,
+                  icon: Icons.account_balance_wallet,
+                  label: 'Tarik Dana',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => WithdrawScreen(shopId: shop.id),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildActionCard(
+                  context,
                   icon: Icons.share,
                   label: 'Bagikan Toko',
                   onTap: () {
@@ -195,8 +212,6 @@ class HomeScreen extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 16),
-              const Expanded(child: SizedBox()), // Empty space for alignment
             ],
           ),
         ],

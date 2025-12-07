@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Search } from "lucide-react";
 import { StoreCard } from "@/components/store-card";
 import { Store } from "@/lib/mock-data";
+import { AuthButton } from "@/components/AuthButton";
 
 interface StoreSearchProps {
     initialStores: Store[];
@@ -28,7 +29,12 @@ export function StoreSearch({ initialStores }: StoreSearchProps) {
     });
 
     return (
-        <div className="w-full max-w-5xl flex flex-col items-center mt-20 gap-8">
+        <div className="w-full max-w-5xl flex flex-col items-center mt-8 gap-8">
+            {/* Auth Button - Top Right */}
+            <div className="w-full flex justify-end mb-4">
+                <AuthButton />
+            </div>
+
             {/* Branding */}
             <div className="flex flex-col items-center gap-2">
                 <h1 className="text-6xl font-bold tracking-tight text-primary">

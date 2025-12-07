@@ -4,6 +4,8 @@ import Link from "next/link";
 import { HeroSection } from "./components/HeroSection";
 import { SectionRenderer } from "./components/SectionRenderer";
 import { FooterSection } from "./components/FooterSection";
+import { ShopLayoutClient } from "./components/ShopLayoutClient";
+import { NavbarCart } from "./components/NavbarCart";
 import type {
     StorefrontLayout,
     Theme,
@@ -113,6 +115,7 @@ export default async function RootSlugPage({ params }: RootSlugPageProps) {
     console.log('[Storefront] Sections:', sections.length, sections.map(s => s.type));
 
     return (
+        <ShopLayoutClient shop={{ id: shop.id, name: shop.name, slug: shop.slug }}>
         <main
             className="min-h-screen"
             style={{
@@ -143,9 +146,12 @@ export default async function RootSlugPage({ params }: RootSlugPageProps) {
                     >
                         {shop.name}
                     </h1>
-                    <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-                        ← Kembali
-                    </Link>
+                    <div className="flex items-center gap-4">
+                        <NavbarCart />
+                        <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
+                            ← Kembali
+                        </Link>
+                    </div>
                 </div>
             </nav>
 
@@ -281,5 +287,6 @@ export default async function RootSlugPage({ params }: RootSlugPageProps) {
                 />
             ))}
         </main>
+        </ShopLayoutClient>
     );
 }

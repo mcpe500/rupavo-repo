@@ -1,6 +1,8 @@
 'use client';
 
 import { ProductGridSection, Product, Theme, VisualStyle } from '../../types/storefront';
+import { useCart } from '@/components/cart';
+import { useShop } from '@/components/shop';
 
 interface ProductGridProps {
     section: ProductGridSection;
@@ -10,6 +12,8 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ section, products, theme, visualStyle }: ProductGridProps) {
+    const { addToCart } = useCart();
+    const shop = useShop();
     const borderRadius = getBorderRadius(visualStyle.border_radius);
     const shadow = getShadow(visualStyle.shadows);
 
@@ -28,6 +32,19 @@ export function ProductGrid({ section, products, theme, visualStyle }: ProductGr
 
     // Card styles based on visual style
     const cardStyle = getCardStyle(visualStyle.card_style, theme);
+
+    const handleAddToCart = (product: Product) => {
+        addToCart(
+            {
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                image_url: product.image_url ?? undefined,
+            },
+            shop.id,
+            shop.slug
+        );
+    };
 
     return (
         <div className="max-w-6xl mx-auto">
@@ -91,7 +108,8 @@ export function ProductGrid({ section, products, theme, visualStyle }: ProductGr
                                         Rp {product.price.toLocaleString('id-ID')}
                                     </span>
                                     <button
-                                        className="px-4 py-2 text-white text-sm font-medium transition-colors"
+                                        onClick={() => handleAddToCart(product)}
+                                        className="px-4 py-2 text-white text-sm font-medium transition-colors hover:opacity-90"
                                         style={{
                                             backgroundColor: theme.secondary_color,
                                             borderRadius: borderRadius,

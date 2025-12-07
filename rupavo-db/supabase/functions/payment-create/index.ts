@@ -26,6 +26,7 @@ interface CreatePaymentRequest {
   }>
   delivery_fee?: number
   notes?: string
+  additional_data?: Record<string, any>
 }
 
 serve(async (req) => {
@@ -139,7 +140,8 @@ serve(async (req) => {
           customer_notes: body.notes,
           delivery_fee: deliveryFee,
           merchant_received: merchantAmount,
-          platform_fee: platformFee
+          platform_fee: platformFee,
+          additional_data: body.additional_data ? JSON.stringify(body.additional_data) : '{}'
         })
         .select()
         .single()
