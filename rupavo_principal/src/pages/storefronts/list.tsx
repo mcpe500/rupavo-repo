@@ -25,13 +25,14 @@ export const StorefrontList = () => {
     const shopIds = tableProps?.dataSource?.map((item: any) => item.shop_id).filter(Boolean) || [];
 
     // Fetch shops for displaying names
-    const { data: shopsData } = useMany({
+    const { result: shopsResult } = useMany({
         resource: "shops",
         ids: shopIds,
         queryOptions: {
             enabled: shopIds.length > 0,
         },
     });
+    const shopsData = shopsResult;
 
     const getShopName = (shopId: string) => {
         const shop = shopsData?.data?.find((s: any) => s.id === shopId);

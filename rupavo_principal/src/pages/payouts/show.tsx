@@ -7,14 +7,14 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 export const PayoutShow = () => {
-  const { queryResult } = useShow({
+  const { query } = useShow({
     meta: {
       select: "*, shops(name, slug, owner_id)",
     },
   });
-  const { data, isLoading } = queryResult;
+  const { data, isLoading } = query;
   const { mutate: updatePayout } = useUpdate();
-  
+
   const [adminNotes, setAdminNotes] = useState("");
 
   const record = data?.data;
@@ -142,7 +142,7 @@ export const PayoutShow = () => {
             defaultValue={record?.admin_notes}
             onChange={(e) => setAdminNotes(e.target.value)}
           />
-          
+
           {record?.status === "pending" && (
             <Space>
               <Button
@@ -159,7 +159,7 @@ export const PayoutShow = () => {
               </Button>
             </Space>
           )}
-          
+
           {record?.status === "processing" && (
             <Space>
               <Button

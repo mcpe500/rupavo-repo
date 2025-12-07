@@ -5,12 +5,12 @@ import { Typography, Card, Descriptions, Tag, Space, Timeline } from "antd";
 const { Title, Text } = Typography;
 
 export const TransactionShow = () => {
-  const { queryResult } = useShow({
+  const { query } = useShow({
     meta: {
       select: "*, orders(*, shops(name, slug)), shops(name, slug)",
     },
   });
-  const { data, isLoading } = queryResult;
+  const { data, isLoading } = query;
 
   const record = data?.data;
 
@@ -128,12 +128,12 @@ export const TransactionShow = () => {
 
       {record?.midtrans_response && (
         <Card title="Midtrans Response (Debug)">
-          <pre style={{ 
-            background: "#f5f5f5", 
-            padding: 16, 
+          <pre style={{
+            background: "#f5f5f5",
+            padding: 16,
             borderRadius: 4,
             overflow: "auto",
-            maxHeight: 400 
+            maxHeight: 400
           }}>
             {JSON.stringify(record.midtrans_response, null, 2)}
           </pre>

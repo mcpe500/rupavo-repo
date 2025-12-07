@@ -111,12 +111,12 @@ export const ShopPaymentSettingsEdit = () => {
           name="min_order_amount"
           tooltip="Minimum order amount in Rupiah (leave empty for no minimum)"
         >
-          <InputNumber
+          <InputNumber<number>
             style={{ width: "100%" }}
             min={0}
             step={1000}
             formatter={(value) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-            parser={(value) => value!.replace(/Rp\s?|(,*)/g, "")}
+            parser={(value) => Number(value!.replace(/Rp\s?|(,*)/g, "")) || 0}
             placeholder="0"
           />
         </Form.Item>
@@ -148,12 +148,12 @@ export const ShopPaymentSettingsEdit = () => {
           name="delivery_base_fee"
           tooltip="Base delivery fee in Rupiah"
         >
-          <InputNumber
+          <InputNumber<number>
             style={{ width: "100%" }}
             min={0}
             step={1000}
             formatter={(value) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-            parser={(value) => value!.replace(/Rp\s?|(,*)/g, "")}
+            parser={(value) => Number(value!.replace(/Rp\s?|(,*)/g, "")) || 0}
             placeholder="10000"
           />
         </Form.Item>
