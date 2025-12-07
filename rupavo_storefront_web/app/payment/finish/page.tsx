@@ -24,7 +24,7 @@ function PaymentFinishContent() {
             // First, check URL parameters for immediate status
             // Midtrans sends: transaction_status and status_code
             const statusCode = searchParams.get("status_code");
-            
+
             // If we have transaction_status from Midtrans callback, use it directly
             // This handles the case where webhook hasn't updated DB yet
             if (transactionStatus) {
@@ -51,7 +51,7 @@ function PaymentFinishContent() {
 
             // Try to fetch order by ID (could be UUID or might need to search by midtrans_order_id)
             let order = null;
-            
+
             // First try direct ID match (if it's UUID)
             const { data: directOrder, error: directError } = await supabase
                 .from("orders")
@@ -89,7 +89,7 @@ function PaymentFinishContent() {
 
             if (order) {
                 setOrderDetails(order);
-                
+
                 // If we haven't set status from URL params, use DB status
                 if (!transactionStatus && !statusCode) {
                     if (order.payment_status === "paid") {
@@ -183,7 +183,7 @@ function PaymentFinishContent() {
 
                     <div className="flex flex-col gap-2 pt-4">
                         {orderDetails?.shops?.slug && (
-                            <Link href={`/store/${orderDetails.shops.slug}`}>
+                            <Link href={`/${orderDetails.shops.slug}`}>
                                 <Button variant="outline" className="w-full">
                                     Kembali ke Toko
                                 </Button>
