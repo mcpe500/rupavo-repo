@@ -94,7 +94,7 @@ export function AuthButton() {
   return (
     <Link
       href="/auth/login"
-      className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors font-medium shadow-sm"
+      className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-800 border border-gray-200 rounded-full hover:bg-gray-200 transition-colors font-medium shadow-sm"
     >
       <User className="w-4 h-4" />
       <span>Masuk</span>
