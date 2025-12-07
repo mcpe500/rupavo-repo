@@ -107,12 +107,12 @@ serve(async (req) => {
       if (fraudStatus === 'accept') {
         transactionStatus = 'settlement'
         paymentStatus = 'paid'
-        orderStatus = 'confirmed'
+        orderStatus = 'completed'  // Valid enum: draft, completed, cancelled
       }
     } else if (transactionStatusCode === 'settlement') {
       transactionStatus = 'settlement'
       paymentStatus = 'paid'
-      orderStatus = 'confirmed'
+      orderStatus = 'completed'  // Valid enum: draft, completed, cancelled
     } else if (transactionStatusCode === 'pending') {
       transactionStatus = 'pending'
       paymentStatus = 'pending'
