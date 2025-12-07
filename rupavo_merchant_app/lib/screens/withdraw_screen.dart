@@ -57,13 +57,27 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
   void _showWithdrawDialog() {
     if (_bankSettings == null || !_bankSettings!.isComplete) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Silakan atur rekening bank terlebih dahulu'),
-          action: SnackBarAction(
-            label: 'Atur',
-            onPressed: () => _showBankSettingsDialog(),
+      // Show a more visible dialog instead of SnackBar
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Pengaturan Rekening'),
+          content: const Text(
+            'Silakan atur rekening bank Anda terlebih dahulu untuk melakukan penarikan dana.',
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Nanti'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showBankSettingsDialog();
+              },
+              child: const Text('Atur Sekarang'),
+            ),
+          ],
         ),
       );
       return;
