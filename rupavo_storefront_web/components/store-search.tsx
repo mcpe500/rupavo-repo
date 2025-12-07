@@ -49,11 +49,12 @@ export function StoreSearch({ initialStores }: StoreSearchProps) {
             <aside className="text-center text-sm text-muted-foreground" aria-label="Informasi untuk pedagang">
                 <p>
                     Apabila anda ingin membuka toko,{" "}
-                    <a 
-                        href="/download/rupavo-merchant.apk"
+                    <a
+                        href="https://github.com/mcpe500/rupavo-repo"
                         className="text-primary hover:underline font-medium"
                         title="Download Aplikasi Rupavo Merchant untuk Android"
-                        rel="noopener"
+                        rel="noopener noreferrer"
+                        target="_blank"
                         aria-label="Download APK Rupavo Merchant"
                     >
                         Download APK Kami
